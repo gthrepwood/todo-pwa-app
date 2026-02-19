@@ -8,7 +8,6 @@ const input = document.getElementById('todo-input');
 const list = document.getElementById('todo-list');
 const showDoneToggle = document.getElementById('show-done-toggle');
 const undoBtn = document.getElementById('undo-btn');
-const clearDoneBtn = document.getElementById('clear-done-btn');
 
 let allTodos = [];
 let undoStack = [];
@@ -21,7 +20,6 @@ function getAuthHeaders() {
 
 function showLoginScreen() {
   document.getElementById('todo-form').classList.add('hidden');
-  document.querySelector('.toggle-container').classList.add('hidden');
   document.getElementById('todo-list').classList.add('hidden');
   document.getElementById('undo-btn').classList.add('hidden');
   document.getElementById('login-screen').classList.remove('hidden');
@@ -34,7 +32,6 @@ function showLoginScreen() {
 
 function showMainScreen() {
   document.getElementById('todo-form').classList.remove('hidden');
-  document.querySelector('.toggle-container').classList.remove('hidden');
   document.getElementById('todo-list').classList.remove('hidden');
   document.getElementById('login-screen').classList.add('hidden');
   // Update menu: hide Login, show Logout
@@ -129,10 +126,6 @@ function renderTodos() {
   const showDone = showDoneToggle.checked;
   const todosToRender = showDone ? allTodos : allTodos.filter(t => !t.done);
 
-  // Show/hide clear-done button based on toggle and if there are done items
-  const hasDoneItems = allTodos.some(t => t.done);
-  clearDoneBtn.style.display = (showDone && hasDoneItems) ? 'inline-block' : 'none';
-
   list.innerHTML = '';
   todosToRender.forEach(todo => {
     const li = document.createElement('li');
@@ -143,11 +136,11 @@ function renderTodos() {
     span.textContent = todo.text;
 
     const toggleBtn = document.createElement('button');
-    toggleBtn.textContent = todo.done ? 'Vissza' : '🆗 Kész';
+    toggleBtn.textContent = todo.done ? '↩' : '🆗';
     toggleBtn.addEventListener('click', () => toggleTodo(todo));
 
     const delBtn = document.createElement('button');
-    delBtn.textContent = '🚮 Törlés';
+    delBtn.textContent = '🚮';
     delBtn.addEventListener('click', () => deleteTodo(todo));
 
     li.appendChild(span);
@@ -277,7 +270,6 @@ form.addEventListener('submit', e => {
 
 showDoneToggle.addEventListener('change', renderTodos);
 undoBtn.addEventListener('click', undo);
-clearDoneBtn.addEventListener('click', clearDoneTodos);
 
 // Login form handling
 const loginForm = document.getElementById('login-form');
@@ -289,7 +281,7 @@ loginForm.addEventListener('submit', async e => {
   const password = loginPassword.value;
   const result = await login(password);
   if (!result.success) {
-    loginError.textContent = result.error || 'Hiba bejelentkezéskor';
+    loginError.textContent = result.error || 'Login error';
     loginError.classList.remove('hidden');
   }
 });
@@ -323,10 +315,21 @@ mainMenu.addEventListener('click', (e) => {
       window.location.hash = '';
       break;
     case 'about':
-      alert('TODO PWA v1.0 — Egyszerű feladatkezelő alkalmazás PWA technológiával.');
+      alert('Todo PWA v1.0 — A simple task manager built with PWA technology.');
       break;
     case 'contact':
-      alert('Kapcsolat: gthrepwood@gmail.com');
+      const u = ['g','t','h','r','e','p','w','o','o','d'].join('');
+      const d = ['g','m','a','i','l','.','c','o','m'].join('');
+      alert('Contact: ' + u + '\u0040' + d);
+      break;
+    case 'toggle-done':
+      showDoneToggle.checked = !showDoneToggle.checked;
+      // Update menu label
+      link.textContent = showDoneToggle.checked ? '🙈 Hide completed' : '👁️ Show completed';
+      renderTodos();
+      break;
+    case 'clear-done':
+      clearDoneTodos();
       break;
     case 'save-db':
       saveDb();
@@ -367,7 +370,7 @@ function loadDb() {
       const text = await file.text();
       const data = JSON.parse(text);
       if (!Array.isArray(data)) {
-        alert('Érvénytelen fájlformátum!');
+        alert('Invalid file format!');
         return;
       }
       // Save undo state
@@ -382,14 +385,14 @@ function loadDb() {
         body: JSON.stringify(data)
       });
       if (response.ok) {
-        alert('Adatbázis sikeresen betöltve!');
+        alert('Database loaded successfully!');
       } else if (response.status === 401) {
         showLoginScreen();
       } else {
-        alert('Hiba történt a betöltés során!');
+        alert('Error loading database!');
       }
     } catch (err) {
-      alert('Hiba a fájl olvasásakor: ' + err.message);
+      alert('Error reading file: ' + err.message);
     }
   });
   input.click();
@@ -409,5 +412,5 @@ fullscreenBtn.addEventListener('click', () => {
 
 document.addEventListener('fullscreenchange', () => {
   fullscreenBtn.textContent = document.fullscreenElement ? '⛶' : '⛶';
-  fullscreenBtn.title = document.fullscreenElement ? 'Kilépés a teljes képernyőből' : 'Teljes képernyő';
+  fullscreenBtn.title = document.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen';
 });

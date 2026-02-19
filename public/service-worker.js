@@ -5,7 +5,7 @@ const ASSETS = [
   '/style.css',
   '/app.js',
   '/manifest.webmanifest'
-  // opcionálisan:
+  // optionally:
   // '/icon-192.png',
   // '/icon-512.png'
 ];

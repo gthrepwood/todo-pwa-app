@@ -1,7 +1,32 @@
 [
   {
     "id": 1,
-    "text": "Mogyoró",
+    "text": "Peanut",
     "done": false
+  },
+  {
+    "id": 2,
+    "text": "Carrot",
+    "done": false
+  },
+  {
+    "id": 3,
+    "text": "Biscuit",
+    "done": false
+  },
+  {
+    "id": 4,
+    "text": "1",
+    "done": true
+  },
+  {
+    "id": 5,
+    "text": "2",
+    "done": true
+  },
+  {
+    "id": 6,
+    "text": "3",
+    "done": true
   }
 ]

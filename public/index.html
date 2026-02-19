@@ -1,10 +1,11 @@
 <!doctype html>
-<html lang="hu">
+<html lang="en">
 
 <head>
   <meta charset="utf-8" />
   <title>Todo PWA</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="manifest" href="manifest.webmanifest" />
   <meta name="theme-color" content="#1976d2" />
   <link rel="stylesheet" href="style.css" />
@@ -13,13 +14,15 @@
 <body>
   <header>
     <h1>✅ Todo PWA</h1>
-    <p>Feladataid egy helyen, bárhol</p>
-    <button id="fullscreen-btn" class="fullscreen-btn" title="Teljes képernyő">⛶</button>
-    <button id="menu-toggle" class="menu-toggle" title="Menü">☰</button>
+    <p>Your tasks in one place, anywhere</p>
+    <button id="fullscreen-btn" class="fullscreen-btn" title="Fullscreen">⛶</button>
+    <button id="menu-toggle" class="menu-toggle" title="Menu">☰</button>
     <nav id="main-menu" class="main-menu hidden">
       <a href="#" data-menu="home">🏠 Home</a>
       <a href="#" data-menu="about">ℹ️ About</a>
       <a href="#" data-menu="contact">📧 Contact</a>
+      <a href="#" data-menu="toggle-done">👁️ Show completed</a>
+      <a href="#" data-menu="clear-done">🚮 Clear completed</a>
       <a href="#" data-menu="save-db">💾 Save DB</a>
       <a href="#" data-menu="load-db">📂 Load DB</a>
       <a href="#" data-menu="login">🔐 Login</a>
@@ -30,29 +33,24 @@
   <main>
     <div id="login-screen" class="hidden">
       <div class="login-container">
-        <h2>🔐 Bejelentkezés</h2>
+        <h2>🔐 Login</h2>
         <form id="login-form">
-          <input id="login-password" type="password" placeholder="Jelszó" required/>
-          <button type="submit">Belépés</button>
+          <input id="login-password" type="password" placeholder="Password" required/>
+          <button type="submit">Sign in</button>
         </form>
         <p id="login-error" class="error hidden"></p>
       </div>
     </div>
 
     <form id="todo-form">
-      <input id="todo-input" type="text" placeholder="Új feladat..." autocomplete="off" />
-      <button type="submit">➕ Hozzáadás</button>
+      <input id="todo-input" type="text" placeholder="New task..." autocomplete="off" />
+      <button type="submit">➕ Add</button>
     </form>
 
-    <div class="toggle-container">
-      <input type="checkbox" id="show-done-toggle">
-      <label for="show-done-toggle">Kész elemek mutatása</label>
-      <button id="clear-done-btn" title="Kész elemek törlése">🚮</button>
-    </div>
-
+    <input type="checkbox" id="show-done-toggle" class="hidden">
     <ul id="todo-list"></ul>
 
-    <button id="undo-btn" class="hidden">Visszaállítás</button>
+    <button id="undo-btn" class="hidden">Undo</button>
   </main>
 
   <script src="app.js"></script>

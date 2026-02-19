@@ -35,11 +35,18 @@ async function runTests() {
 
     // Test 1: Add todos with Unicode, emojis and special characters
     console.log('1. Adding test todos with special characters...');
-    await addTodo('🎉 Szülinap 🎂');
-    await addTodo('🐱 Macska 🐱');
-    await addTodo('Ékezetek: áéíóúüőű');
+    await addTodo('🎉 Birthday 🎂');
+    await addTodo('🐱 Cat 🐱');
+    await addTodo('Accents: áéíóúüőű');
     await addTodo('Special: @#$%^&*()');
     await addTodo('Emoji: 😀😂🥰🔥💯');
+    // Multilingual tests
+    await addTodo('Chinese: 你好世界 🇨🇳');          // Chinese: Hello World
+    await addTodo('Urdu: ہیلو دنیا 🇵🇰');            // Urdu: Hello World
+    await addTodo('Japanese: こんにちは世界 🇯🇵');    // Japanese: Hello World
+    await addTodo('Hindi: नमस्ते दुनिया 🇮🇳');       // Hindi: Hello World
+    await addTodo('Hebrew: שלום עולם 🇮🇱');          // Hebrew: Hello World
+    await addTodo('Arabic: مرحبا بالعالم 🇸🇦');      // Arabic: Hello World
 
     let todos = await getTodos();
     console.log('Current todos:', todos.length);
@@ -63,7 +70,7 @@ async function runTests() {
     console.log('3. First undo - restoring last deleted item...');
     const stateAfterFirstDelete = [
         ...todos,
-        { id: idToDelete2, text: todos[0]?.text || '🎉 Szülinap 🎂', done: false }
+        { id: idToDelete2, text: todos[0]?.text || '🎉 Birthday 🎂', done: false }
     ];
 
     await restoreTodos(stateAfterFirstDelete);
@@ -75,7 +82,7 @@ async function runTests() {
     console.log('4. Second undo - restoring first deleted item...');
     const stateBeforeAnyDelete = [
         ...todos,
-        { id: idToDelete1, text: '🎉 Szülinap 🎂', done: false }
+        { id: idToDelete1, text: '🎉 Birthday 🎂', done: false }
     ];
 
     await restoreTodos(stateBeforeAnyDelete);
