@@ -14,7 +14,17 @@
   <header>
     <h1>✅ Todo PWA</h1>
     <p>Feladataid egy helyen, bárhol</p>
-    <button id="logout-btn" class="logout-btn">🚪 Kilépés</button>
+    <button id="fullscreen-btn" class="fullscreen-btn" title="Teljes képernyő">⛶</button>
+    <button id="menu-toggle" class="menu-toggle" title="Menü">☰</button>
+    <nav id="main-menu" class="main-menu hidden">
+      <a href="#" data-menu="home">🏠 Home</a>
+      <a href="#" data-menu="about">ℹ️ About</a>
+      <a href="#" data-menu="contact">📧 Contact</a>
+      <a href="#" data-menu="save-db">💾 Save DB</a>
+      <a href="#" data-menu="load-db">📂 Load DB</a>
+      <a href="#" data-menu="login">🔐 Login</a>
+      <a href="#" data-menu="logout">🚪 Logout</a>
+    </nav>
   </header>
 
   <main>
@@ -22,7 +32,7 @@
       <div class="login-container">
         <h2>🔐 Bejelentkezés</h2>
         <form id="login-form">
-          <input id="login-password" type="password" placeholder="Jelszó" required />
+          <input id="login-password" type="password" placeholder="Jelszó" required/>
           <button type="submit">Belépés</button>
         </form>
         <p id="login-error" class="error hidden"></p>

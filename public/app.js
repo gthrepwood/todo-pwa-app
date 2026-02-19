@@ -25,7 +25,11 @@ function showLoginScreen() {
   document.getElementById('todo-list').classList.add('hidden');
   document.getElementById('undo-btn').classList.add('hidden');
   document.getElementById('login-screen').classList.remove('hidden');
-  document.getElementById('logout-btn').classList.add('hidden');
+  // Update menu: show Login, hide Logout
+  const loginLink = document.querySelector('[data-menu="login"]');
+  const logoutLink = document.querySelector('[data-menu="logout"]');
+  if (loginLink) loginLink.style.display = '';
+  if (logoutLink) logoutLink.style.display = 'none';
 }
 
 function showMainScreen() {
@@ -33,7 +37,11 @@ function showMainScreen() {
   document.querySelector('.toggle-container').classList.remove('hidden');
   document.getElementById('todo-list').classList.remove('hidden');
   document.getElementById('login-screen').classList.add('hidden');
-  document.getElementById('logout-btn').classList.remove('hidden');
+  // Update menu: hide Login, show Logout
+  const loginLink = document.querySelector('[data-menu="login"]');
+  const logoutLink = document.querySelector('[data-menu="logout"]');
+  if (loginLink) loginLink.style.display = 'none';
+  if (logoutLink) logoutLink.style.display = '';
 }
 
 async function login(password) {
@@ -286,6 +294,120 @@ loginForm.addEventListener('submit', async e => {
   }
 });
 
-// Logout button
-const logoutBtn = document.getElementById('logout-btn');
-logoutBtn.addEventListener('click', logout);
+// --- Menu Toggle ---
+const menuToggle = document.getElementById('menu-toggle');
+const mainMenu = document.getElementById('main-menu');
+
+menuToggle.addEventListener('click', (e) => {
+  e.stopPropagation();
+  mainMenu.classList.toggle('hidden');
+});
+
+// Close menu when clicking outside
+document.addEventListener('click', (e) => {
+  if (!mainMenu.contains(e.target) && e.target !== menuToggle) {
+    mainMenu.classList.add('hidden');
+  }
+});
+
+// Menu item handlers
+mainMenu.addEventListener('click', (e) => {
+  const link = e.target.closest('[data-menu]');
+  if (!link) return;
+  e.preventDefault();
+  mainMenu.classList.add('hidden');
+
+  const action = link.dataset.menu;
+  switch (action) {
+    case 'home':
+      window.location.hash = '';
+      break;
+    case 'about':
+      alert('TODO PWA v1.0 — Egyszerű feladatkezelő alkalmazás PWA technológiával.');
+      break;
+    case 'contact':
+      alert('Kapcsolat: gthrepwood@gmail.com');
+      break;
+    case 'save-db':
+      saveDb();
+      break;
+    case 'load-db':
+      loadDb();
+      break;
+    case 'login':
+      showLoginScreen();
+      break;
+    case 'logout':
+      logout();
+      break;
+  }
+});
+
+// Save DB - download todos as JSON
+function saveDb() {
+  const data = JSON.stringify(allTodos, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'todos-backup.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Load DB - upload todos from JSON file
+function loadDb() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!Array.isArray(data)) {
+        alert('Érvénytelen fájlformátum!');
+        return;
+      }
+      // Save undo state
+      undoStack.push(JSON.parse(JSON.stringify(allTodos)));
+      // Upload to server
+      const response = await fetch(API_BASE, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify(data)
+      });
+      if (response.ok) {
+        alert('Adatbázis sikeresen betöltve!');
+      } else if (response.status === 401) {
+        showLoginScreen();
+      } else {
+        alert('Hiba történt a betöltés során!');
+      }
+    } catch (err) {
+      alert('Hiba a fájl olvasásakor: ' + err.message);
+    }
+  });
+  input.click();
+}
+
+// Fullscreen toggle
+const fullscreenBtn = document.getElementById('fullscreen-btn');
+fullscreenBtn.addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(err => {
+      console.error('Fullscreen request failed:', err);
+    });
+  } else {
+    document.exitFullscreen();
+  }
+});
+
+document.addEventListener('fullscreenchange', () => {
+  fullscreenBtn.textContent = document.fullscreenElement ? '⛶' : '⛶';
+  fullscreenBtn.title = document.fullscreenElement ? 'Kilépés a teljes képernyőből' : 'Teljes képernyő';
+});

@@ -5,6 +5,7 @@ body {
 }
 
 header {
+  position: relative;
   background: linear-gradient(135deg, #1976d2 0%, #2196f3 100%);
   color: white;
   padding: 1.5rem;
@@ -157,6 +158,11 @@ footer a {
   color: #1976d2;
 }
 
+#login-form {
+  flex-direction: column;
+  align-items: center;
+}
+
 .login-container input {
   width: 100%;
   box-sizing: border-box;
@@ -172,9 +178,69 @@ footer a {
   margin-top: 0.5rem;
 }
 
-.logout-btn {
-  margin-top: 0.5rem;
+/* Hamburger Menu */
+.menu-toggle {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
   background: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  font-size: 0.8rem;
+  font-size: 1.4rem;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  z-index: 101;
+}
+
+.menu-toggle:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.main-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 0 0 8px 0;
+  z-index: 100;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-menu a {
+  display: block;
+  padding: 0.75rem 1.25rem;
+  color: #333;
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: background 0.15s;
+  text-align: left;
+}
+
+.main-menu a:hover {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.main-menu a:not(:last-child) {
+  border-bottom: 1px solid #eee;
+}
+
+.fullscreen-btn {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .fullscreen-btn {
+    display: block;
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    font-size: 1.2rem;
+    padding: 0.3rem 0.6rem;
+    cursor: pointer;
+  }
 }

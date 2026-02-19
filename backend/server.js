@@ -148,13 +148,19 @@ app.delete('/api/todos/:id', requireAuth, (req, res) => {
 });
 
 // --- WebSocket Connection Handling ---
-wss.on('connection', ws => {
-  console.log('Client connected');
+wss.on('connection', (ws, req) => {
+  const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const userAgent = req.headers['user-agent'] || 'Unknown';
+  const connectTime = new Date().toISOString();
+
+  console.log(`[WS] Client connected | IP: ${clientIp} | UA: ${userAgent} | Time: ${connectTime} | Total clients: ${wss.clients.size}`);
+
   // Send the current list of todos to the newly connected client
   ws.send(JSON.stringify(todos));
 
   ws.on('close', () => {
-    console.log('Client disconnected');
+    const disconnectTime = new Date().toISOString();
+    console.log(`[WS] Client disconnected | IP: ${clientIp} | UA: ${userAgent} | Time: ${disconnectTime} | Remaining clients: ${wss.clients.size}`);
   });
 });
 
