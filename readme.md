@@ -50,17 +50,17 @@ Default password: `todopwa2026`
 
 **Build the image:**
 ```bash
-docker build -t todo-pwa:v1 .
+docker build -t todo-pwa:latest .
 ```
 
 **Run the container:**
 ```bash
-docker run -p 3004:3004 todo-pwa:v1
+docker run -p 3004:3004 todo-pwa:latest
 ```
 
 **With custom password:**
 ```bash
-docker run -p 3004:3004 -e PASSWORD=mysecret todo-pwa:v1
+docker run -p 3004:3004 -e PASSWORD=mysecret todo-pwa:latest
 ```
 
 **Check if running:**
@@ -126,6 +126,12 @@ node test-undo.js
 This tests Unicode support across multiple scripts: Chinese, Urdu, Japanese, Hindi, Hebrew, Arabic, and more.
 
 ---
+
+## Push (internal)
+
+```bash
+ docker push gthrepwood/todo-pwa:latest
+ ```
 
 ## 📄 License
 
