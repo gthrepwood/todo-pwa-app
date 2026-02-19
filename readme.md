@@ -130,8 +130,27 @@ This tests Unicode support across multiple scripts: Chinese, Urdu, Japanese, Hin
 ## Push (internal)
 
 ```bash
- docker push gthrepwood/todo-pwa:latest
+docker build -t todo-pwa:latest .
+docker tag todo-pwa:latest gthrepwood/todo-pwa:latest
+docker push gthrepwood/todo-pwa:latest
  ```
+
+ ## Add to **unraid**
+
+```bash
+docker run \
+ -d \
+ --name='todo' \
+ --net='host' \
+ --pids-limit 2048 \
+ -e TZ="Europe/Budapest" \
+ -e HOST_OS="Unraid" \
+ -e HOST_HOSTNAME="Lugu" \
+ -e HOST_CONTAINERNAME="todo" \
+ -e 'PASSWORD'='0011' \
+ -l net.unraid.docker.managed=dockerman 'gthrepwood/todo-pwa' 
+```
+
 
 ## 📄 License
 

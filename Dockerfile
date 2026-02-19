@@ -1,20 +1,24 @@
-# 1. Alap image kiválasztása (LTS verzió ajánlott)
+# 1. Base image (LTS recommended)
 FROM node:20-slim
 
-# 2. Munkakönyvtár létrehozása a konténeren belül
+# 2. Set working directory inside the container
 WORKDIR /app
 
-# 3. Package fájlok másolása (így kihasználható a Docker réteg-gyorsítótára)
+# 3. Copy package files first (enables Docker layer caching)
 COPY package*.json ./
 
-# 4. Függőségek telepítése
+# 4. Install dependencies
 RUN npm install
 
-# 5. A teljes forráskód másolása
+# 5. Copy the full source code
 COPY . .
 
-# 6. Port megnyitása (amit az appod használ, pl. 3000)
-EXPOSE 3004
+# 6. Environment variables with defaults
+ENV PORT=3004
+ENV PASSWORD=ROZSA
 
-# 7. Az alkalmazás indítása
+# 7. Expose the port
+EXPOSE ${PORT}
+
+# 8. Start the application
 CMD ["npm", "start"]
