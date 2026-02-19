@@ -4,12 +4,18 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const WebSocket = require('ws');
+const crypto = require('crypto');
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3004;
+const PASSWORD = process.env.PASSWORD || 'todopwa2026';
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+
+// Simple in-memory session store
+const sessions = new Map();
 
 const DATA_FILE = path.join(__dirname, 'data', 'todos.json');
 
@@ -50,18 +56,47 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// --- API Endpoints ---
+// --- Authentication Middleware ---
+function requireAuth(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token || !sessions.has(token)) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  req.session = sessions.get(token);
+  next();
+}
 
-app.get('/api/todos', (req, res) => {
+// --- Auth Endpoints ---
+app.post('/api/auth/login', (req, res) => {
+  const { password } = req.body;
+  if (password !== PASSWORD) {
+    return res.status(401).json({ error: 'Invalid password' });
+  }
+  const token = crypto.randomBytes(32).toString('hex');
+  sessions.set(token, { createdAt: Date.now() });
+  res.json({ token });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (token) {
+    sessions.delete(token);
+  }
+  res.json({ message: 'Logged out' });
+});
+
+// --- API Endpoints (protected) ---
+
+app.get('/api/todos', requireAuth, (req, res) => {
   res.json(todos);
 });
 
-app.post('/api/todos', (req, res) => {
+app.post('/api/todos', requireAuth, (req, res) => {
   const { text } = req.body;
   if (!text || !text.trim()) {
     return res.status(400).json({ error: 'Text is required' });
   }
-  
+
   nextId = todos.length > 0 ? Math.max(...todos.map(t => t.id)) + 1 : 1;
   const todo = { id: nextId++, text: text.trim(), done: false };
   todos.push(todo);
@@ -71,7 +106,7 @@ app.post('/api/todos', (req, res) => {
   res.status(201).json(todo);
 });
 
-app.put('/api/todos', (req, res) => {
+app.put('/api/todos', requireAuth, (req, res) => {
   const newTodos = req.body;
   console.log('Received data for undo:', newTodos);
   if (!Array.isArray(newTodos)) {
@@ -85,7 +120,7 @@ app.put('/api/todos', (req, res) => {
   res.status(200).json({ message: 'Todos restored successfully' });
 });
 
-app.put('/api/todos/:id', (req, res) => {
+app.put('/api/todos/:id', requireAuth, (req, res) => {
   const id = Number(req.params.id);
   const { text, done } = req.body;
 
@@ -100,7 +135,7 @@ app.put('/api/todos/:id', (req, res) => {
   res.json(todo);
 });
 
-app.delete('/api/todos/:id', (req, res) => {
+app.delete('/api/todos/:id', requireAuth, (req, res) => {
   const id = Number(req.params.id);
   const index = todos.findIndex(t => t.id === id);
   if (index === -1) return res.status(404).json({ error: 'Not found' });

@@ -1,57 +1,7 @@
 [
   {
-    "id": 2,
-    "text": "test1",
-    "done": false
-  },
-  {
-    "id": 3,
-    "text": "test2",
-    "done": false
-  },
-  {
-    "id": 8,
-    "text": "Gg",
-    "done": true
-  },
-  {
-    "id": 9,
-    "text": "oo",
-    "done": true
-  },
-  {
-    "id": 22,
-    "text": "A",
-    "done": false
-  },
-  {
-    "id": 23,
-    "text": "Jjjj",
-    "done": false
-  },
-  {
-    "id": 24,
-    "text": "F",
-    "done": false
-  },
-  {
-    "id": 25,
-    "text": "X",
-    "done": true
-  },
-  {
-    "id": 26,
-    "text": "V",
-    "done": true
-  },
-  {
-    "id": 27,
-    "text": "1",
-    "done": false
-  },
-  {
-    "id": 29,
-    "text": "3",
+    "id": 1,
+    "text": "Mogyoró",
     "done": false
   }
 ]

@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="hu">
+
 <head>
   <meta charset="utf-8" />
   <title>Todo PWA</title>
@@ -8,25 +9,40 @@
   <meta name="theme-color" content="#1976d2" />
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
   <header>
-    <h1>Todo PWA</h1>
+    <h1>✅ Todo PWA</h1>
+    <p>Feladataid egy helyen, bárhol</p>
+    <button id="logout-btn" class="logout-btn">🚪 Kilépés</button>
   </header>
 
   <main>
+    <div id="login-screen" class="hidden">
+      <div class="login-container">
+        <h2>🔐 Bejelentkezés</h2>
+        <form id="login-form">
+          <input id="login-password" type="password" placeholder="Jelszó" required />
+          <button type="submit">Belépés</button>
+        </form>
+        <p id="login-error" class="error hidden"></p>
+      </div>
+    </div>
+
     <form id="todo-form">
       <input id="todo-input" type="text" placeholder="Új feladat..." autocomplete="off" />
-      <button type="submit">Hozzáadás</button>
+      <button type="submit">➕ Hozzáadás</button>
     </form>
 
     <div class="toggle-container">
-        <input type="checkbox" id="show-done-toggle">
-        <label for="show-done-toggle">Kész elemek mutatása</label>
+      <input type="checkbox" id="show-done-toggle">
+      <label for="show-done-toggle">Kész elemek mutatása</label>
+      <button id="clear-done-btn" title="Kész elemek törlése">🚮</button>
     </div>
 
     <ul id="todo-list"></ul>
 
-    <button id="undo-btn" class="hidden">Undo</button>
+    <button id="undo-btn" class="hidden">Visszaállítás</button>
   </main>
 
   <script src="app.js"></script>
@@ -35,5 +51,11 @@
       navigator.serviceWorker.register('/service-worker.js');
     }
   </script>
+
+  <footer>
+    <p>&copy; 2026 Todo PWA &mdash; <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank"
+        rel="noopener">CC BY-SA 4.0</a></p>
+  </footer>
 </body>
+
 </html>
