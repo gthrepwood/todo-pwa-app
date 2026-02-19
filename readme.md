@@ -147,7 +147,7 @@ docker run \
  -e HOST_OS="Unraid" \
  -e HOST_HOSTNAME="Lugu" \
  -e HOST_CONTAINERNAME="todo" \
- -e 'PASSWORD'='0011' \
+ -e 'PASSWORD'='MYOURSECRET' \
  -l net.unraid.docker.managed=dockerman 'gthrepwood/todo-pwa' 
 ```
 
