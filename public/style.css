@@ -66,3 +66,11 @@ button:hover {
 .todo-item button {
   margin-left: 0.5rem;
 }
+
+body.hide-done .todo-item.done {
+  display: none;
+}
+
+.hidden {
+    display: none;
+}

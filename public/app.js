@@ -3,16 +3,36 @@ const API_BASE = '/api/todos';
 const form = document.getElementById('todo-form');
 const input = document.getElementById('todo-input');
 const list = document.getElementById('todo-list');
+const showDoneToggle = document.getElementById('show-done-toggle');
+const undoBtn = document.getElementById('undo-btn');
 
-async function fetchTodos() {
-  const res = await fetch(API_BASE);
-  const data = await res.json();
-  renderTodos(data);
-}
+let allTodos = [];
+let previousState = null;
+let undoTimeout = null;
 
-function renderTodos(todos) {
+// --- WebSocket Setup ---
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const ws = new WebSocket(`${wsProtocol}//${window.location.host}`);
+
+ws.onmessage = (event) => {
+  allTodos = JSON.parse(event.data);
+  renderTodos();
+};
+
+ws.onopen = () => {
+  console.log('WebSocket connection established');
+};
+
+ws.onerror = (error) => {
+  console.error('WebSocket error:', error);
+};
+
+function renderTodos() {
+  const showDone = showDoneToggle.checked;
+  const todosToRender = showDone ? allTodos : allTodos.filter(t => !t.done);
+
   list.innerHTML = '';
-  todos.forEach(todo => {
+  todosToRender.forEach(todo => {
     const li = document.createElement('li');
     li.className = 'todo-item' + (todo.done ? ' done' : '');
     li.dataset.id = todo.id;
@@ -35,30 +55,56 @@ function renderTodos(todos) {
   });
 }
 
+function showUndoButton() {
+    undoBtn.classList.remove('hidden');
+    clearTimeout(undoTimeout);
+    undoTimeout = setTimeout(() => {
+        hideUndoButton();
+    }, 5000);
+}
+
+function hideUndoButton() {
+    undoBtn.classList.add('hidden');
+    previousState = null;
+    clearTimeout(undoTimeout);
+}
+
 async function addTodo(text) {
-  const res = await fetch(API_BASE, {
+  hideUndoButton();
+  await fetch(API_BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text })
   });
-  await res.json();
-  fetchTodos();
 }
 
 async function toggleTodo(todo) {
+  previousState = JSON.parse(JSON.stringify(allTodos));
   await fetch(`${API_BASE}/${todo.id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ done: !todo.done })
   });
-  fetchTodos();
+  showUndoButton();
 }
 
 async function deleteTodo(todo) {
+  previousState = JSON.parse(JSON.stringify(allTodos));
   await fetch(`${API_BASE}/${todo.id}`, {
     method: 'DELETE'
   });
-  fetchTodos();
+  showUndoButton();
+}
+
+async function undo() {
+    console.log('Undoing with state:', previousState);
+    if (!previousState) return;
+    await fetch(API_BASE, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(previousState)
+    });
+    hideUndoButton();
 }
 
 form.addEventListener('submit', e => {
@@ -69,4 +115,5 @@ form.addEventListener('submit', e => {
   input.value = '';
 });
 
-fetchTodos();
+showDoneToggle.addEventListener('change', renderTodos);
+undoBtn.addEventListener('click', undo);
