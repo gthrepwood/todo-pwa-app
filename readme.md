@@ -150,7 +150,23 @@ docker run \
  -e 'PASSWORD'='MYOURSECRET' \
  -l net.unraid.docker.managed=dockerman 'gthrepwood/todo-pwa' 
 ```
+### Compose file
 
+```yaml
+---
+services:
+  todo-pwa:
+    image: docker.io/gthrepwood/todo-pwa:latest
+    container_name: todo-pwa
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - PASSWORD=${PASSWORD}
+    ports:
+      - 3004:3004
+    restart: unless-stopped
+```
 
 ## 📄 License
 
