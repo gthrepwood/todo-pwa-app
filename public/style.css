@@ -83,6 +83,17 @@ button:hover {
   margin-left: 0.5rem;
 }
 
+.fav-btn {
+  background: transparent !important;
+  font-size: 1.2rem;
+  padding: 0.2rem 0.4rem;
+  color: black;
+}
+
+.fav-btn:hover {
+  background: rgba(255, 215, 0, 0.2) !important;
+}
+
 body.hide-done .todo-item.done {
   display: none;
 }

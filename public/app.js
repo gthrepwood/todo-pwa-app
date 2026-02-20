@@ -124,13 +124,24 @@ if (authToken) {
 
 function renderTodos() {
   const showDone = showDoneToggle.checked;
-  const todosToRender = showDone ? allTodos : allTodos.filter(t => !t.done);
+  let todosToRender = showDone ? allTodos : allTodos.filter(t => !t.done);
+
+  // Sort: favorites first, then by id
+  todosToRender = [...todosToRender].sort((a, b) => {
+    if (a.favorite !== b.favorite) return b.favorite ? 1 : -1;
+    return a.id - b.id;
+  });
 
   list.innerHTML = '';
   todosToRender.forEach(todo => {
     const li = document.createElement('li');
     li.className = 'todo-item' + (todo.done ? ' done' : '');
     li.dataset.id = todo.id;
+
+    const favBtn = document.createElement('button');
+    favBtn.textContent = todo.favorite ? '⭐' : '☆';
+    favBtn.className = 'fav-btn';
+    favBtn.addEventListener('click', () => toggleFavorite(todo));
 
     const span = document.createElement('span');
     span.textContent = todo.text;
@@ -143,6 +154,7 @@ function renderTodos() {
     delBtn.textContent = '🚮';
     delBtn.addEventListener('click', () => deleteTodo(todo));
 
+    li.appendChild(favBtn);
     li.appendChild(span);
     li.appendChild(toggleBtn);
     li.appendChild(delBtn);
@@ -188,6 +200,23 @@ async function toggleTodo(todo) {
       ...getAuthHeaders()
     },
     body: JSON.stringify({ done: !todo.done })
+  });
+  if (response.status === 401) {
+    showLoginScreen();
+  } else {
+    showUndoButton();
+  }
+}
+
+async function toggleFavorite(todo) {
+  undoStack.push(JSON.parse(JSON.stringify(allTodos)));
+  const response = await fetch(`${API_BASE}/${todo.id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders()
+    },
+    body: JSON.stringify({ favorite: !todo.favorite })
   });
   if (response.status === 401) {
     showLoginScreen();
