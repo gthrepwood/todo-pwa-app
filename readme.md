@@ -7,15 +7,17 @@
 ## ✨ Features
 
 - 📋 **Create, complete & delete** tasks instantly
+- ⭐ **Favorites** — mark tasks with ⭐, they jump to the top
 - 🔄 **Real-time sync** across all connected clients via WebSocket
 - ↩️ **Undo** — restore accidentally deleted tasks (10-second window)
 - 👁️ **Show/hide completed** tasks from the menu
 - 💾 **Save & Load DB** — export/import your todos as JSON
-- 🔐 **Password-protected** — simple token-based authentication
+- 🔐 **Password-protected** — each password has its own todo database
 - 📱 **PWA** — installable on mobile, works offline (service worker)
 - 🌐 **Multilingual** — Unicode support (Chinese, Arabic, Hebrew, Japanese, Hindi, Urdu…)
 - 🌙 **Fullscreen mode** on mobile devices
 - 🍔 **Hamburger menu** with all controls in one place
+- 🔢 **Auto-versioning** — version number increments with usage
 
 ---
 
@@ -40,9 +42,29 @@ npm install
 npm start
 ```
 
-Open [http://localhost:3004](http://localhost:3004) in your browser.
+The server automatically detects HTTPS certificates:
 
-Default password: `todopwa2026`
+**HTTPS (with SSL certificates):**
+```bash
+# Generate self-signed certificates (for local development with HTTPS)
+node backend/data/generate-certs.js
+
+# Start server - will use https://
+npm start
+```
+
+**HTTP (without certificates):**
+```bash
+# Just delete or rename the certificate files
+# (or don't run generate-certs.js)
+
+# Start server - will use http://
+npm start
+```
+
+Open [https://localhost:3004](https://localhost:3004) (or [http://localhost:3004](http://localhost:3004) if no certs).
+
+Default password: `ROZSA`
 
 ---
 
@@ -58,11 +80,6 @@ docker build -t todo-pwa:latest .
 docker run -p 3004:3004 todo-pwa:latest
 ```
 
-**With custom password:**
-```bash
-docker run -p 3004:3004 -e PASSWORD=mysecret todo-pwa:latest
-```
-
 **Check if running:**
 ```bash
 docker ps | grep :3004
@@ -75,7 +92,6 @@ docker ps | grep :3004
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `3004` | Server port |
-| `PASSWORD` | `todopwa2026` | Login password |
 | `SESSION_SECRET` | *(random)* | JWT session secret |
 
 ---
@@ -85,16 +101,20 @@ docker ps | grep :3004
 ```
 todo-pwa/
 ├── backend/
-│   ├── server.js          # Express + WebSocket server
+│   ├── server.js              # Express + WebSocket server
 │   └── data/
-│       └── todos.json     # Persistent todo storage
+│       ├── passwords.json     # Password storage (SHA256 hashes)
+│       ├── todos_<hash>.json  # Per-password todo databases
+│       ├── key.pem            # SSL private key (HTTPS)
+│       ├── cert.pem           # SSL certificate (HTTPS)
+│       └── generate-certs.js  # Certificate generator
 ├── public/
-│   ├── index.html         # App shell
-│   ├── app.js             # Frontend logic
-│   ├── style.css          # Styles
-│   ├── favicon.svg        # ✅ Favicon
+│   ├── index.html             # App shell
+│   ├── app.js                # Frontend logic
+│   ├── style.css             # Styles
+│   ├── favicon.svg           # ✅ Favicon
 │   ├── manifest.webmanifest
-│   └── service-worker.js  # Offline support
+│   └── service-worker.js     # Offline support
 ├── Dockerfile
 └── package.json
 ```
@@ -147,7 +167,6 @@ docker run \
  -e HOST_OS="Unraid" \
  -e HOST_HOSTNAME="Lugu" \
  -e HOST_CONTAINERNAME="todo" \
- -e 'PASSWORD'='MYOURSECRET' \
  -l net.unraid.docker.managed=dockerman 'gthrepwood/todo-pwa' 
 ```
 ### Compose file
@@ -162,7 +181,6 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Etc/UTC
-      - PASSWORD=${PASSWORD}
     ports:
       - 3004:3004
     restart: unless-stopped

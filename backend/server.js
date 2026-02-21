@@ -3,11 +3,31 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+const https = require('https');
 const WebSocket = require('ws');
 const crypto = require('crypto');
 
 const app = express();
-const server = http.createServer(app);
+
+// SSL certificates
+const SSL_DIR = path.join(__dirname, 'data');
+const keyPath = path.join(SSL_DIR, 'key.pem');
+const certPath = path.join(SSL_DIR, 'cert.pem');
+
+const isHttps = fs.existsSync(keyPath) && fs.existsSync(certPath);
+let server;
+if (isHttps) {
+  const httpsOptions = {
+    key: fs.readFileSync(keyPath),
+    cert: fs.readFileSync(certPath)
+  };
+  server = https.createServer(httpsOptions, app);
+  console.log('🔐 HTTPS enabled');
+} else {
+  server = http.createServer(app);
+  console.log('⚠️ HTTPS not configured, using HTTP');
+}
+
 const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3004;
@@ -293,8 +313,9 @@ wss.on('connection', (ws, req) => {
 });
 
 
+const PROTOCOL = isHttps ? 'https' : 'http';
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on http://0.0.0.0:${PORT}`);
+  console.log(`Server running on ${PROTOCOL}://0.0.0.0:${PORT}`);
   console.log(`Passwords stored in: ${PASSWORDS_FILE}`);
   console.log(`Todo databases stored in: ${DATA_DIR}/todos_<hash>.json`);
 });

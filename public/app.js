@@ -443,3 +443,41 @@ document.addEventListener('fullscreenchange', () => {
   fullscreenBtn.textContent = document.fullscreenElement ? '⛶' : '⛶';
   fullscreenBtn.title = document.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen';
 });
+
+// Auto-increment version on feature usage
+const versionKey = 'todo_pwa_version';
+let currentVersion = localStorage.getItem(versionKey) || '1.0.0';
+
+function incrementVersion() {
+  const versionEl = document.getElementById('version');
+  if (!versionEl) return;
+  
+  const parts = currentVersion.split('.').map(Number);
+  parts[2]++; // Increment patch
+  if (parts[2] >= 10) {
+    parts[2] = 0;
+    parts[1]++;
+  }
+  if (parts[1] >= 10) {
+    parts[1] = 0;
+    parts[0]++;
+  }
+  currentVersion = parts.join('.');
+  localStorage.setItem(versionKey, currentVersion);
+  versionEl.textContent = currentVersion;
+}
+
+// Initialize version display
+document.addEventListener('DOMContentLoaded', () => {
+  const versionEl = document.getElementById('version');
+  if (versionEl) {
+    versionEl.textContent = currentVersion;
+  }
+});
+
+// Auto-increment on favorite toggle
+const originalToggleFavorite = toggleFavorite;
+toggleFavorite = async function(todo) {
+  await originalToggleFavorite(todo);
+  incrementVersion();
+};

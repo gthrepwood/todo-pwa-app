@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/*
+
+# SSL Certificates (generated locally)
+backend/data/key.pem
+backend/data/cert.pem
+# backend/data/generate-certs.js
+
+# Editor
+# .vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
