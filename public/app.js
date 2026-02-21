@@ -446,12 +446,13 @@ document.addEventListener('fullscreenchange', () => {
 
 // Auto-increment version on feature usage
 const versionKey = 'todo_pwa_version';
-let currentVersion = localStorage.getItem(versionKey) || '1.0.0';
+let currentVersion = localStorage.getItem(versionKey) || '1.0.?';
 
 function incrementVersion() {
   const versionEl = document.getElementById('version');
-  if (!versionEl) return;
+  if (versionEl) versionEl.textContent = currentVersion;
   
+  // Actually increment after displaying
   const parts = currentVersion.split('.').map(Number);
   parts[2]++; // Increment patch
   if (parts[2] >= 10) {
@@ -464,7 +465,6 @@ function incrementVersion() {
   }
   currentVersion = parts.join('.');
   localStorage.setItem(versionKey, currentVersion);
-  versionEl.textContent = currentVersion;
 }
 
 // Initialize version display
