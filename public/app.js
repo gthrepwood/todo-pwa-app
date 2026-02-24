@@ -10,8 +10,24 @@ const showDoneToggle = document.getElementById('show-done-toggle');
 const undoBtn = document.getElementById('undo-btn');
 
 let allTodos = [];
+try {
+  const cachedTodos = localStorage.getItem('cachedTodos');
+  if (cachedTodos) {
+    allTodos = JSON.parse(cachedTodos);
+    console.log(`[CACHE] Loaded ${allTodos.length} todos from localStorage.`);
+  } else {
+    console.log('[CACHE] No cached todos found in localStorage.');
+  }
+} catch (e) {
+  console.error('Error loading cached todos', e);
+  localStorage.removeItem('cachedTodos');
+}
+
 let undoStack = [];
 let undoTimeout = null;
+
+// Initial render from cache
+renderTodos();
 
 // --- Authentication ---
 function getAuthHeaders() {
@@ -41,9 +57,33 @@ function showMainScreen() {
   if (logoutLink) logoutLink.style.display = '';
 }
 
+async function fetchWithLogging(url, options) {
+  const method = options?.method || 'GET';
+  console.log(`[API] ==> ${method} ${url}`);
+  try {
+    const response = await fetch(url, options);
+    console.log(`[API] <== ${method} ${url} - ${response.status} ${response.statusText}`);
+    return response;
+  } catch (error) {
+    console.error(`[API] <== FAILED ${method} ${url}`, error);
+    throw error;
+  }
+}
+
+function updateAndCacheTodos(newTodos) {
+  console.log(`[CACHE] Updating with ${newTodos.length} todos.`);
+  allTodos = newTodos;
+  try {
+    localStorage.setItem('cachedTodos', JSON.stringify(allTodos));
+  } catch (e) {
+    console.error('Error caching todos', e);
+  }
+  renderTodos();
+}
+
 async function login(password) {
   try {
-    const response = await fetch(`${AUTH_API}/login`, {
+    const response = await fetchWithLogging(`${AUTH_API}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password })
@@ -67,13 +107,15 @@ async function login(password) {
 
 async function logout() {
   try {
-    await fetch(`${AUTH_API}/logout`, {
+    await fetchWithLogging(`${AUTH_API}/logout`, {
       method: 'POST',
       headers: getAuthHeaders()
     });
   } catch (e) { }
   authToken = null;
+  console.log('[CACHE] Clearing all cached data on logout.');
   localStorage.removeItem('authToken');
+  localStorage.removeItem('cachedTodos');
   showLoginScreen();
 }
 
@@ -83,8 +125,7 @@ const ws = new WebSocket(`${wsProtocol}//${window.location.host}`);
 
 ws.onmessage = (event) => {
   if (!authToken) return; // Don't update if not logged in
-  allTodos = JSON.parse(event.data);
-  renderTodos();
+  updateAndCacheTodos(JSON.parse(event.data));
 };
 
 ws.onopen = () => {
@@ -98,18 +139,18 @@ ws.onerror = (error) => {
 // --- Load initial data ---
 async function loadTodos() {
   try {
-    const response = await fetch(API_BASE, {
+    const response = await fetchWithLogging(API_BASE, {
       headers: getAuthHeaders()
     });
     if (response.status === 401) {
       authToken = null;
       localStorage.removeItem('authToken');
+      localStorage.removeItem('cachedTodos');
       showLoginScreen();
       return;
     }
-    allTodos = await response.json();
-    renderTodos();
-    showMainScreen();
+    const newTodos = await response.json();
+    updateAndCacheTodos(newTodos);
   } catch (error) {
     console.error('Error loading todos:', error);
     showLoginScreen();
@@ -117,12 +158,33 @@ async function loadTodos() {
 }
 
 // Check if logged in on startup
-showLoginScreen();
 if (authToken) {
-  loadTodos();
+  // Validate session first, assume we are logged in until proven otherwise
+  showMainScreen();
+  fetchWithLogging('/api/auth/check', { headers: getAuthHeaders() })
+    .then(res => {
+      if (res.ok) {
+        loadTodos();
+      } else {
+        // Session invalid, clear token and show login
+        authToken = null;
+        localStorage.removeItem('authToken');
+        showLoginScreen();
+      }
+    })
+    .catch(() => {
+      // Network error, clear token and show login
+      authToken = null;
+      localStorage.removeItem('authToken');
+      showLoginScreen();
+    });
+} else {
+  // No token, show login screen immediately
+  showLoginScreen();
 }
 
 function renderTodos() {
+  console.log(`[RENDER] Starting render with ${allTodos.length} total todos in memory.`);
   const showDone = showDoneToggle.checked;
   let todosToRender = showDone ? allTodos : allTodos.filter(t => !t.done);
 
@@ -133,6 +195,7 @@ function renderTodos() {
   });
 
   list.innerHTML = '';
+  console.log(`[RENDER] Rendering ${todosToRender.length} todo items to the DOM.`);
   todosToRender.forEach(todo => {
     const li = document.createElement('li');
     li.className = 'todo-item' + (todo.done ? ' done' : '');
@@ -178,7 +241,7 @@ function hideUndoButton() {
 
 async function addTodo(text) {
   hideUndoButton();
-  const response = await fetch(API_BASE, {
+  const response = await fetchWithLogging(API_BASE, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -193,7 +256,7 @@ async function addTodo(text) {
 
 async function toggleTodo(todo) {
   undoStack.push(JSON.parse(JSON.stringify(allTodos)));
-  const response = await fetch(`${API_BASE}/${todo.id}`, {
+  const response = await fetchWithLogging(`${API_BASE}/${todo.id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -210,7 +273,7 @@ async function toggleTodo(todo) {
 
 async function toggleFavorite(todo) {
   undoStack.push(JSON.parse(JSON.stringify(allTodos)));
-  const response = await fetch(`${API_BASE}/${todo.id}`, {
+  const response = await fetchWithLogging(`${API_BASE}/${todo.id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -229,7 +292,7 @@ async function deleteTodo(todo) {
   console.log('Deleting todo:', todo);
   undoStack.push(JSON.parse(JSON.stringify(allTodos)));
   console.log('Saved state with', undoStack[undoStack.length - 1].length, 'items');
-  const response = await fetch(`${API_BASE}/${todo.id}`, {
+  const response = await fetchWithLogging(`${API_BASE}/${todo.id}`, {
     method: 'DELETE',
     headers: getAuthHeaders()
   });
@@ -249,7 +312,7 @@ async function clearDoneTodos() {
 
   // Delete all done todos
   const deletePromises = doneTodos.map(todo =>
-    fetch(`${API_BASE}/${todo.id}`, {
+    fetchWithLogging(`${API_BASE}/${todo.id}`, {
       method: 'DELETE',
       headers: getAuthHeaders()
     })
@@ -271,7 +334,7 @@ async function undo() {
   const originalState = undoStack[0];
   console.log('Undoing ALL actions, restoring to original state with', originalState.length, 'items');
   try {
-    const response = await fetch(API_BASE, {
+    const response = await fetchWithLogging(API_BASE, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -405,7 +468,7 @@ function loadDb() {
       // Save undo state
       undoStack.push(JSON.parse(JSON.stringify(allTodos)));
       // Upload to server
-      const response = await fetch(API_BASE, {
+      const response = await fetchWithLogging(API_BASE, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -444,40 +507,13 @@ document.addEventListener('fullscreenchange', () => {
   fullscreenBtn.title = document.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen';
 });
 
-// Auto-increment version on feature usage
-const versionKey = 'todo_pwa_version';
-let currentVersion = localStorage.getItem(versionKey) || '1.0.?';
-
-function incrementVersion() {
-  const versionEl = document.getElementById('version');
-  if (versionEl) versionEl.textContent = currentVersion;
-  
-  // Actually increment after displaying
-  const parts = currentVersion.split('.').map(Number);
-  parts[2]++; // Increment patch
-  if (parts[2] >= 10) {
-    parts[2] = 0;
-    parts[1]++;
-  }
-  if (parts[1] >= 10) {
-    parts[1] = 0;
-    parts[0]++;
-  }
-  currentVersion = parts.join('.');
-  localStorage.setItem(versionKey, currentVersion);
-}
-
-// Initialize version display
-document.addEventListener('DOMContentLoaded', () => {
-  const versionEl = document.getElementById('version');
-  if (versionEl) {
-    versionEl.textContent = currentVersion;
-  }
-});
-
-// Auto-increment on favorite toggle
-const originalToggleFavorite = toggleFavorite;
-toggleFavorite = async function(todo) {
-  await originalToggleFavorite(todo);
-  incrementVersion();
-};
+// Version display - fetch from server
+fetchWithLogging('/api/version')
+  .then(res => res.json())
+  .then(data => {
+    const versionEl = document.getElementById('version');
+    if (versionEl && data.version) {
+      versionEl.textContent = data.version;
+    }
+  })
+  .catch(() => {});

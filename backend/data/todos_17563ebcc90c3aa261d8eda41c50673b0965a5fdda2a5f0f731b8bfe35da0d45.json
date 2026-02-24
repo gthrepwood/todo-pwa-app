@@ -14,7 +14,8 @@
   {
     "id": 3,
     "text": "p3",
-    "done": false
+    "done": false,
+    "favorite": false
   },
   {
     "id": 4,

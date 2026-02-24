@@ -185,7 +185,12 @@ services:
       - 3004:3004
     restart: unless-stopped
 ```
+## kill running app
+
+`Stop-Process -Id (Get-NetTCPConnection -LocalPort 3004).OwningProcess -Force
+
 
 ## 📄 License
 
 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) © 2026 Todo PWA
+

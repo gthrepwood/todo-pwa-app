@@ -7,6 +7,10 @@ const https = require('https');
 const WebSocket = require('ws');
 const crypto = require('crypto');
 
+// Load version from package.json
+const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+const APP_VERSION = packageJson.version || '1.0.0';
+
 const app = express();
 
 // SSL certificates
@@ -33,9 +37,6 @@ const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 3004;
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 
-// Simple in-memory session store
-const sessions = new Map();
-
 // Data directory
 const DATA_DIR = path.join(__dirname, 'data');
 const PASSWORDS_FILE = path.join(DATA_DIR, 'passwords.json');
@@ -44,6 +45,38 @@ const PASSWORDS_FILE = path.join(DATA_DIR, 'passwords.json');
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
+
+// Simple in-memory session store with file persistence
+const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
+
+function loadSessions() {
+  try {
+    if (fs.existsSync(SESSIONS_FILE)) {
+      const raw = fs.readFileSync(SESSIONS_FILE, 'utf8');
+      return new Map(JSON.parse(raw));
+    }
+  } catch (err) {
+    console.error('Error loading sessions:', err);
+  }
+  return new Map();
+}
+
+function saveSessions() {
+  try {
+    const sessionsArray = Array.from(sessions.entries());
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessionsArray, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Error saving sessions:', err);
+  }
+}
+
+const sessions = loadSessions();
+
+// Save sessions on server shutdown
+process.on('SIGINT', () => {
+  saveSessions();
+  process.exit();
+});
 
 // --- Password management functions ---
 
@@ -201,6 +234,7 @@ app.post('/api/auth/login', (req, res) => {
     createdAt: Date.now(),
     passwordHash: passwordHash
   });
+  saveSessions();
   
   res.json({ 
     token,
@@ -213,6 +247,7 @@ app.post('/api/auth/logout', (req, res) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (token) {
     sessions.delete(token);
+    saveSessions();
   }
   res.json({ message: 'Logged out' });
 });
@@ -225,6 +260,10 @@ app.get('/api/auth/check', (req, res) => {
   } else {
     res.json({ authenticated: false });
   }
+});
+
+app.get('/api/version', (req, res) => {
+  res.json({ version: APP_VERSION });
 });
 
 // --- API Endpoints (protected) ---
@@ -304,7 +343,6 @@ wss.on('connection', (ws, req) => {
   // Send the current list of todos to the newly connected client
   // Note: WebSocket doesn't have session, so we send empty list initially
   // Client should authenticate via API first
-  ws.send(JSON.stringify([]));
 
   ws.on('close', () => {
     const disconnectTime = new Date().toISOString();
