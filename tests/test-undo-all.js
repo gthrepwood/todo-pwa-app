@@ -1,21 +1,44 @@
 // Test: Delete multiple items and undo ALL at once
 
 const API_BASE = 'http://localhost:3004/api/todos';
+const AUTH_API = 'http://localhost:3004/api/auth';
+
+let authToken = null;
+
+async function login(password) {
+    const response = await fetch(`${AUTH_API}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+    });
+    const data = await response.json();
+    return data.token;
+}
+
+async function getAuthHeaders() {
+    return authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
+}
 
 async function getTodos() {
-    const response = await fetch(API_BASE);
+    const response = await fetch(API_BASE, { headers: await getAuthHeaders() });
     return await response.json();
 }
 
 async function deleteTodo(id) {
-    const response = await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
+    const response = await fetch(`${API_BASE}/${id}`, { 
+        method: 'DELETE',
+        headers: await getAuthHeaders()
+    });
     return await response.json();
 }
 
 async function restoreTodos(todos) {
     const response = await fetch(API_BASE, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            ...await getAuthHeaders()
+        },
         body: JSON.stringify(todos)
     });
     return await response.json();
@@ -24,7 +47,10 @@ async function restoreTodos(todos) {
 async function addTodo(text) {
     const response = await fetch(API_BASE, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            ...await getAuthHeaders()
+        },
         body: JSON.stringify({ text })
     });
     return await response.json();
@@ -32,6 +58,11 @@ async function addTodo(text) {
 
 async function runTest() {
     console.log('=== Test: Multiple Delete + Undo ALL at Once ===\n');
+    
+    // Login first
+    console.log('0. Logging in...');
+    authToken = await login('todopwa2026');
+    console.log('  Logged in successfully\n');
 
     // Step 1: Create items 1, 2, 3, 4
     console.log('1. Creating items: 1, 2, 3, 4');
@@ -46,7 +77,6 @@ async function runTest() {
 
     // Step 2: Delete items 1, 2, 3
     console.log('2. Deleting items: 1, 2, 3');
-    const items = todos.map(t => t.text);
     const id1 = todos.find(t => t.text === '1').id;
     const id2 = todos.find(t => t.text === '2').id;
     const id3 = todos.find(t => t.text === '3').id;

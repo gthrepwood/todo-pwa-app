@@ -23,13 +23,13 @@
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Backend | [Node.js](https://nodejs.org) + [Express.js](https://expressjs.com) |
-| Real-time | [ws](https://github.com/websockets/ws) (WebSocket) |
-| Frontend | Vanilla JavaScript, CSS |
-| Storage | JSON file (`backend/data/todos.json`) |
-| PWA | Service Worker + Web App Manifest |
+| Layer     | Technology                                                          |
+| --------- | ------------------------------------------------------------------- |
+| Backend   | [Node.js](https://nodejs.org) + [Express.js](https://expressjs.com) |
+| Real-time | [ws](https://github.com/websockets/ws) (WebSocket)                  |
+| Frontend  | Vanilla JavaScript, CSS                                             |
+| Storage   | JSON file (`backend/data/todos.json`)                               |
+| PWA       | Service Worker + Web App Manifest                                   |
 
 For detailed technical documentation, see [technology.md](./technology.md).
 
@@ -47,6 +47,7 @@ npm start
 The server automatically detects HTTPS certificates:
 
 **HTTPS (with SSL certificates):**
+
 ```bash
 # Generate self-signed certificates (for local development with HTTPS)
 node backend/data/generate-certs.js
@@ -56,6 +57,7 @@ npm start
 ```
 
 **HTTP (without certificates):**
+
 ```bash
 # Just delete or rename the certificate files
 # (or don't run generate-certs.js)
@@ -71,16 +73,19 @@ Open [https://localhost:3004](https://localhost:3004) (or [http://localhost:3004
 ### 🐳 Docker
 
 **Build the image:**
+
 ```bash
 docker build -t todo-pwa:latest .
 ```
 
 **Run the container:**
+
 ```bash
 docker run -p 3004:3004 todo-pwa:latest
 ```
 
 **Check if running:**
+
 ```bash
 docker ps | grep :3004
 ```
@@ -95,10 +100,10 @@ This app can be hosted on [Dynu.com](https://www.dynu.com/) because it supports 
 
 ## ⚙️ Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `3004` | Server port |
-| `SESSION_SECRET` | *(random)* | JWT session secret |
+| Variable                | Default    | Description                               |
+| ----------------------- | ---------- | ----------------------------------------- |
+| `PORT`                  | `3004`     | Server port                               |
+| `SESSION_MAX_AGE_HOURS` | `60`       | Session timeout in mins (default: 60 min) |
 
 ---
 
@@ -129,15 +134,15 @@ todo-pwa/
 
 ## 🔌 API Endpoints
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `POST` | `/api/auth/login` | ❌ | Login with passkey |
-| `POST` | `/api/auth/logout` | ✅ | Logout |
-| `GET` | `/api/todos` | ✅ | Get all todos |
-| `POST` | `/api/todos` | ✅ | Create a todo |
-| `PUT` | `/api/todos/:id` | ✅ | Update a todo |
-| `DELETE` | `/api/todos/:id` | ✅ | Delete a todo |
-| `PUT` | `/api/todos` | ✅ | Restore all todos (undo) |
+| Method   | Endpoint           | Auth | Description              |
+| -------- | ------------------ | ---- | ------------------------ |
+| `POST`   | `/api/auth/login`  | ❌   | Login with passkey       |
+| `POST`   | `/api/auth/logout` | ✅   | Logout                   |
+| `GET`    | `/api/todos`       | ✅   | Get all todos            |
+| `POST`   | `/api/todos`       | ✅   | Create a todo            |
+| `PUT`    | `/api/todos/:id`   | ✅   | Update a todo            |
+| `DELETE` | `/api/todos/:id`   | ✅   | Delete a todo            |
+| `PUT`    | `/api/todos`       | ✅   | Restore all todos (undo) |
 
 ---
 
@@ -159,9 +164,9 @@ This tests Unicode support across multiple scripts: Chinese, Urdu, Japanese, Hin
 docker build -t todo-pwa:latest .
 docker tag todo-pwa:latest gthrepwood/todo-pwa:latest
 docker push gthrepwood/todo-pwa:latest
- ```
+```
 
- ## Add to **unraid**
+## Add to **unraid**
 
 ```bash
 docker run \
@@ -173,8 +178,9 @@ docker run \
  -e HOST_OS="Unraid" \
  -e HOST_HOSTNAME="Lugu" \
  -e HOST_CONTAINERNAME="todo" \
- -l net.unraid.docker.managed=dockerman 'gthrepwood/todo-pwa' 
+ -l net.unraid.docker.managed=dockerman 'gthrepwood/todo-pwa'
 ```
+
 ### Compose file
 
 ```yaml
@@ -191,12 +197,11 @@ services:
       - 3004:3004
     restart: unless-stopped
 ```
+
 ## kill running app
 
 `Stop-Process -Id (Get-NetTCPConnection -LocalPort 3004).OwningProcess -Force
 
-
 ## 📄 License
 
 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) © 2026 Todo PWA
-

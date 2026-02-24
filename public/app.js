@@ -11,6 +11,7 @@ const undoBtn = document.getElementById('undo-btn');
 
 let allTodos = [];
 let currentSortMode = 'default'; // 'default' = by added time, 'alpha' = alphabetically
+let appVersion = '1.0.0'; // Default, will be updated from server
 try {
   const cachedTodos = localStorage.getItem('cachedTodos');
   if (cachedTodos) {
@@ -150,6 +151,10 @@ async function loadTodos() {
       showLoginScreen();
       return;
     }
+    // Get sort mode from response header
+    const sortMode = response.headers.get('X-Sort-Mode') || 'default';
+    currentSortMode = sortMode;
+    
     const newTodos = await response.json();
     updateAndCacheTodos(newTodos);
   } catch (error) {
@@ -448,7 +453,7 @@ mainMenu.addEventListener('click', (e) => {
       window.location.hash = '';
       break;
     case 'about':
-      alert('Todo PWA v1.0 — A simple task manager built with PWA technology.');
+      alert(`Todo PWA v${appVersion} — A simple task manager built with PWA technology.`);
       break;
     case 'contact':
       const u = ['g','t','h','r','e','p','w','o','o','d'].join('');
@@ -464,11 +469,23 @@ mainMenu.addEventListener('click', (e) => {
     case 'sort-alpha':
       currentSortMode = 'alpha';
       link.textContent = '✓ A-Z Sort alphabetically';
+      // Save sort mode to server
+      fetchWithLogging('/api/sort', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ sortMode: 'alpha' })
+      });
       renderTodos();
       break;
     case 'sort-default':
       currentSortMode = 'default';
       link.textContent = '✓ Sort by added';
+      // Save sort mode to server
+      fetchWithLogging('/api/sort', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ sortMode: 'default' })
+      });
       renderTodos();
       break;
     case 'clear-done':
@@ -565,6 +582,7 @@ fetchWithLogging('/api/version')
     const versionEl = document.getElementById('version');
     if (versionEl && data.version) {
       versionEl.textContent = data.version;
+      appVersion = data.version;
     }
   })
   .catch(() => {});

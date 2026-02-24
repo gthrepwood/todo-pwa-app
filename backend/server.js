@@ -39,7 +39,6 @@ if (isHttps) {
 const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3004;
-const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 
 // Data directory
 const DATA_DIR = path.join(__dirname, 'data');
@@ -96,6 +95,86 @@ function loadPasswords() {
   return {};
 }
 
+// Clean up orphaned entries on startup
+function cleanupData() {
+  console.log('\n🧹 Running data cleanup...');
+  
+  // Load passwords
+  const passwords = loadPasswords();
+  const passwordHashes = Object.keys(passwords);
+  
+  // Load sessions as a Map
+  const sessionsArray = loadSessions();
+  const sessionsMap = new Map(sessionsArray);
+  
+  const validSessions = new Map();
+  let sessionsKept = 0;
+  let sessionsRemoved = 0;
+  let sessionsExpired = 0;
+  
+  const now = Date.now();
+  
+  // Keep only sessions with valid password hashes and not expired
+  sessionsMap.forEach((session, token) => {
+    const sessionAge = now - session.createdAt;
+    const isExpired = sessionAge > SESSION_MAX_AGE;
+    
+    if (isExpired) {
+      sessionsExpired++;
+      sessionsRemoved++;
+    } else if (session.passwordHash && passwordHashes.includes(session.passwordHash)) {
+      validSessions.set(token, session);
+      sessionsKept++;
+    } else {
+      sessionsRemoved++;
+    }
+  });
+  
+  if (sessionsRemoved > 0) {
+    // Save the cleaned sessions directly
+    const sessionsArrayClean = Array.from(validSessions.entries());
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessionsArrayClean, null, 2), 'utf8');
+    console.log(`  Removed ${sessionsExpired} expired sessions`);
+    console.log(`  Removed ${sessionsRemoved - sessionsExpired} orphaned sessions`);
+  }
+  
+  // Remove password entries without valid todo files
+  let passwordsRemoved = 0;
+  const validPasswords = {};
+  
+  passwordHashes.forEach(hash => {
+    const todoFile = getTodoFilePath(hash);
+    const archiveFile = path.join(DATA_DIR, 'archive', `todos_${hash}_*.json`);
+    
+    // Check if todo file exists (in data/ or archive/)
+    const dataFileExists = fs.existsSync(todoFile);
+    
+    // Check for archived files
+    const archiveDir = path.join(DATA_DIR, 'archive');
+    let archivedFileExists = false;
+    if (fs.existsSync(archiveDir)) {
+      const archiveFiles = fs.readdirSync(archiveDir);
+      archivedFileExists = archiveFiles.some(f => f.startsWith(`todos_${hash}_`));
+    }
+    
+    if (dataFileExists || archivedFileExists) {
+      validPasswords[hash] = passwords[hash];
+    } else {
+      passwordsRemoved++;
+    }
+  });
+  
+  if (passwordsRemoved > 0) {
+    savePasswords(validPasswords);
+    console.log(`  Removed ${passwordsRemoved} orphaned password entries`);
+  }
+  
+  if (sessionsRemoved === 0 && passwordsRemoved === 0) {
+    console.log('  No cleanup needed ✓');
+  }
+  console.log('');
+}
+
 function savePasswords(passwords) {
   try {
     fs.writeFileSync(PASSWORDS_FILE, JSON.stringify(passwords, null, 2), 'utf8');
@@ -146,18 +225,23 @@ function loadTodos(passwordHash) {
   try {
     if (fs.existsSync(todoFile)) {
       const raw = fs.readFileSync(todoFile, 'utf8');
-      return JSON.parse(raw);
+      const data = JSON.parse(raw);
+      // Support both old format (array) and new format (object)
+      if (Array.isArray(data)) {
+        return { todos: data, sortMode: 'default' };
+      }
+      return data;
     }
   } catch (err) {
     console.error('Error reading todos file:', err);
   }
-  return [];
+  return { todos: [], sortMode: 'default' };
 }
 
-function saveTodos(todos, passwordHash) {
+function saveTodos(todos, passwordHash, sortMode = 'default') {
   const todoFile = getTodoFilePath(passwordHash);
   try {
-    fs.writeFileSync(todoFile, JSON.stringify(todos, null, 2), 'utf8');
+    fs.writeFileSync(todoFile, JSON.stringify({ todos, sortMode }, null, 2), 'utf8');
   } catch (err) {
     console.error('Error writing todos file:', err);
   }
@@ -167,16 +251,16 @@ function saveTodos(todos, passwordHash) {
 
 function getSessionTodos(session) {
   if (!session || !session.passwordHash) {
-    return [];
+    return { todos: [], sortMode: 'default' };
   }
   return loadTodos(session.passwordHash);
 }
 
-function saveSessionTodos(todos, session) {
+function saveSessionTodos(todos, session, sortMode) {
   if (!session || !session.passwordHash) {
     return;
   }
-  saveTodos(todos, session.passwordHash);
+  saveTodos(todos, session.passwordHash, sortMode);
 }
 
 // --- Broadcast function for WebSocket ---
@@ -207,12 +291,25 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // --- Authentication Middleware ---
+const SESSION_MAX_AGE = (process.env.SESSION_MAX_AGE_HOURS || 60) * 60 * 1000; // Default: 60 min
+
 function requireAuth(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token || !sessions.has(token)) {
     return res.status(401).json({ error: 'Authentication required' });
   }
-  req.session = sessions.get(token);
+  
+  const session = sessions.get(token);
+  
+  // Check if session is expired
+  const sessionAge = Date.now() - session.createdAt;
+  if (sessionAge > SESSION_MAX_AGE) {
+    sessions.delete(token);
+    saveSessions();
+    return res.status(401).json({ error: 'Session expired' });
+  }
+  
+  req.session = session;
   next();
 }
 
@@ -273,8 +370,11 @@ app.get('/api/version', (req, res) => {
 // --- API Endpoints (protected) ---
 
 app.get('/api/todos', requireAuth, (req, res) => {
-  const todos = getSessionTodos(req.session);
-  res.json(todos);
+  const data = getSessionTodos(req.session);
+  // Set headers to prevent caching and include sort mode
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.set('X-Sort-Mode', data.sortMode || 'default');
+  res.json(data.todos);
 });
 
 app.post('/api/todos', requireAuth, (req, res) => {
@@ -283,7 +383,9 @@ app.post('/api/todos', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'Text is required' });
   }
 
-  let todos = getSessionTodos(req.session);
+  const data = getSessionTodos(req.session);
+  let todos = data.todos;
+  const sortMode = data.sortMode || 'default';
   const nextId = todos.length > 0 ? Math.max(...todos.map(t => t.id)) + 1 : 1;
   const todo = { 
     id: nextId, 
@@ -293,7 +395,7 @@ app.post('/api/todos', requireAuth, (req, res) => {
     createdAt: Date.now()
   };
   todos.push(todo);
-  saveSessionTodos(todos, req.session);
+  saveSessionTodos(todos, req.session, sortMode);
   broadcast(todos);
 
   res.status(201).json(todo);
@@ -306,7 +408,8 @@ app.put('/api/todos', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'Invalid data format' });
   }
 
-  saveSessionTodos(newTodos, req.session);
+  const data = getSessionTodos(req.session);
+  saveSessionTodos(newTodos, req.session, data.sortMode);
   broadcast(newTodos);
 
   res.status(200).json({ message: 'Todos restored successfully' });
@@ -316,7 +419,9 @@ app.put('/api/todos/:id', requireAuth, (req, res) => {
   const id = Number(req.params.id);
   const { text, done, favorite } = req.body;
 
-  let todos = getSessionTodos(req.session);
+  const data = getSessionTodos(req.session);
+  let todos = data.todos;
+  const sortMode = data.sortMode || 'default';
   const todo = todos.find(t => t.id === id);
   if (!todo) return res.status(404).json({ error: 'Not found' });
 
@@ -324,22 +429,79 @@ app.put('/api/todos/:id', requireAuth, (req, res) => {
   if (typeof done === 'boolean') todo.done = done;
   if (typeof favorite === 'boolean') todo.favorite = favorite;
 
-  saveSessionTodos(todos, req.session);
+  saveSessionTodos(todos, req.session, sortMode);
   broadcast(todos);
   res.json(todo);
 });
 
 app.delete('/api/todos/:id', requireAuth, (req, res) => {
   const id = Number(req.params.id);
-  let todos = getSessionTodos(req.session);
+  const data = getSessionTodos(req.session);
+  let todos = data.todos;
+  const sortMode = data.sortMode || 'default';
   const index = todos.findIndex(t => t.id === id);
   if (index === -1) return res.status(404).json({ error: 'Not found' });
 
   const removed = todos.splice(index, 1)[0];
-  saveSessionTodos(todos, req.session);
+  saveSessionTodos(todos, req.session, sortMode);
   broadcast(todos);
 
   res.json(removed);
+});
+
+// --- Sort mode endpoint ---
+app.put('/api/sort', requireAuth, (req, res) => {
+  const { sortMode } = req.body;
+  if (!sortMode || !['default', 'alpha'].includes(sortMode)) {
+    return res.status(400).json({ error: 'Invalid sort mode' });
+  }
+  
+  const data = getSessionTodos(req.session);
+  saveSessionTodos(data.todos, req.session, sortMode);
+  
+  res.json({ sortMode });
+});
+
+// --- Archive endpoint ---
+app.post('/api/archive', requireAuth, (req, res) => {
+  if (!req.session || !req.session.passwordHash) {
+    return res.status(400).json({ error: 'No session found' });
+  }
+  
+  const passwordHash = req.session.passwordHash;
+  const sourceFile = getTodoFilePath(passwordHash);
+  
+  // Create archive directory if it doesn't exist
+  const archiveDir = path.join(DATA_DIR, 'archive');
+  if (!fs.existsSync(archiveDir)) {
+    fs.mkdirSync(archiveDir, { recursive: true });
+  }
+  
+  // Check if source file exists
+  if (!fs.existsSync(sourceFile)) {
+    return res.status(404).json({ error: 'No database found to archive' });
+  }
+  
+  // Create archive filename with timestamp
+  const timestamp = Date.now();
+  const archiveFileName = `todos_${passwordHash}_${timestamp}.json`;
+  const destFile = path.join(archiveDir, archiveFileName);
+  
+  try {
+    // Move file to archive
+    fs.renameSync(sourceFile, destFile);
+    
+    console.log(`[ARCHIVE] Database archived: ${archiveFileName}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Database archived successfully',
+      archivedFile: archiveFileName
+    });
+  } catch (err) {
+    console.error('Error archiving database:', err);
+    res.status(500).json({ error: 'Failed to archive database' });
+  }
 });
 
 // --- WebSocket Connection Handling ---
@@ -362,6 +524,10 @@ wss.on('connection', (ws, req) => {
 
 
 const PROTOCOL = isHttps ? 'https' : 'http';
+
+// Run cleanup on startup
+cleanupData();
+
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on ${PROTOCOL}://0.0.0.0:${PORT}`);
   console.log(`Passwords stored in: ${PASSWORDS_FILE}`);

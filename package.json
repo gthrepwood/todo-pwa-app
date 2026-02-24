@@ -3,7 +3,10 @@
   "version": "1.0.1",
   "main": "backend/server.js",
   "scripts": {
-    "start": "node backend/server.js"
+    "start": "node backend/server.js",
+    "test": "node tests/test-undo.js && node tests/test-undo-all.js && node tests/test-comprehensive.js",
+    "test:speed": "node tests/test-speed.js",
+    "test:cleanup": "node tests/test-cleanup.js"
   },
   "dependencies": {
     "compression": "^1.7.4",

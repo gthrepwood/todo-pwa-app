@@ -1,21 +1,44 @@
 // Test script for undo functionality with Unicode, emojis and special characters
 
 const API_BASE = 'http://localhost:3004/api/todos';
+const AUTH_API = 'http://localhost:3004/api/auth';
+
+let authToken = null;
+
+async function login(password) {
+    const response = await fetch(`${AUTH_API}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+    });
+    const data = await response.json();
+    return data.token;
+}
+
+async function getAuthHeaders() {
+    return authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
+}
 
 async function getTodos() {
-    const response = await fetch(API_BASE);
+    const response = await fetch(API_BASE, { headers: await getAuthHeaders() });
     return await response.json();
 }
 
 async function deleteTodo(id) {
-    const response = await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
+    const response = await fetch(`${API_BASE}/${id}`, { 
+        method: 'DELETE',
+        headers: await getAuthHeaders()
+    });
     return await response.json();
 }
 
 async function restoreTodos(todos) {
     const response = await fetch(API_BASE, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            ...await getAuthHeaders()
+        },
         body: JSON.stringify(todos)
     });
     return await response.json();
@@ -24,7 +47,10 @@ async function restoreTodos(todos) {
 async function addTodo(text) {
     const response = await fetch(API_BASE, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            ...await getAuthHeaders()
+        },
         body: JSON.stringify({ text })
     });
     return await response.json();
@@ -32,6 +58,11 @@ async function addTodo(text) {
 
 async function runTests() {
     console.log('=== TODO App Undo Tests (Unicode, Emojis, Special Characters) ===\n');
+    
+    // Login first
+    console.log('0. Logging in...');
+    authToken = await login('todopwa2026');
+    console.log('  Logged in successfully\n');
 
     // Test 1: Add todos with Unicode, emojis and special characters
     console.log('1. Adding test todos with special characters...');
