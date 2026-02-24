@@ -1,4 +1,5 @@
 const express = require('express');
+const compression = require('compression');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -12,6 +13,9 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'packa
 const APP_VERSION = packageJson.version || '1.0.0';
 
 const app = express();
+
+// Enable GZIP compression for smaller responses
+app.use(compression());
 
 // SSL certificates
 const SSL_DIR = path.join(__dirname, 'data');

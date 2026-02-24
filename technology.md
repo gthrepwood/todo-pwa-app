@@ -189,6 +189,7 @@ The backend is built with Node.js using Express.js for routing and WebSocket for
 ### Backend Components
 
 - **Express.js**: Web framework for HTTP endpoints
+- **compression**: GZIP/Brotli compression middleware for smaller responses
 - **ws**: WebSocket library for real-time communication
 - **crypto**: Built-in Node.js module for password hashing
 - **fs**: File system module for data persistence
@@ -814,6 +815,7 @@ node tests/test-undo.js
 | Frontend | JavaScript ES6+ | Client logic |
 | Backend | Node.js 20+ | Server runtime |
 | Backend | Express.js 4.x | Web framework |
+| Backend | compression 1.x | GZIP response compression |
 | Backend | ws 8.x | WebSocket library |
 | Backend | selfsigned 2.x | SSL certificates |
 | Security | SHA-256 | Password hashing |
