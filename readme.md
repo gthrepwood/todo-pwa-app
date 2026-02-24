@@ -31,6 +31,8 @@
 | Storage | JSON file (`backend/data/todos.json`) |
 | PWA | Service Worker + Web App Manifest |
 
+For detailed technical documentation, see [technology.md](./technology.md).
+
 ---
 
 ## 🚀 Getting Started
