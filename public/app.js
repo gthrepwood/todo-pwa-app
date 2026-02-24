@@ -10,6 +10,7 @@ const showDoneToggle = document.getElementById('show-done-toggle');
 const undoBtn = document.getElementById('undo-btn');
 
 let allTodos = [];
+let currentSortMode = 'default'; // 'default' = by added time, 'alpha' = alphabetically
 try {
   const cachedTodos = localStorage.getItem('cachedTodos');
   if (cachedTodos) {
@@ -188,9 +189,16 @@ function renderTodos() {
   const showDone = showDoneToggle.checked;
   let todosToRender = showDone ? allTodos : allTodos.filter(t => !t.done);
 
-  // Sort: favorites first, then by id
+  // Sort based on current sort mode
   todosToRender = [...todosToRender].sort((a, b) => {
+    // Always keep favorites first
     if (a.favorite !== b.favorite) return b.favorite ? 1 : -1;
+    
+    // Then apply the selected sort mode
+    if (currentSortMode === 'alpha') {
+      return a.text.localeCompare(b.text);
+    }
+    // default: sort by added time (id represents creation order)
     return a.id - b.id;
   });
 
@@ -418,6 +426,16 @@ mainMenu.addEventListener('click', (e) => {
       showDoneToggle.checked = !showDoneToggle.checked;
       // Update menu label
       link.textContent = showDoneToggle.checked ? '🙈 Hide completed' : '👁️ Show completed';
+      renderTodos();
+      break;
+    case 'sort-alpha':
+      currentSortMode = 'alpha';
+      link.textContent = '✓ A-Z Sort alphabetically';
+      renderTodos();
+      break;
+    case 'sort-default':
+      currentSortMode = 'default';
+      link.textContent = '✓ Sort by added';
       renderTodos();
       break;
     case 'clear-done':

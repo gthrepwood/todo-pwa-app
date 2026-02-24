@@ -285,7 +285,13 @@ app.post('/api/todos', requireAuth, (req, res) => {
 
   let todos = getSessionTodos(req.session);
   const nextId = todos.length > 0 ? Math.max(...todos.map(t => t.id)) + 1 : 1;
-  const todo = { id: nextId, text: text.trim(), done: false, favorite: false };
+  const todo = { 
+    id: nextId, 
+    text: text.trim(), 
+    done: false, 
+    favorite: false,
+    createdAt: Date.now()
+  };
   todos.push(todo);
   saveSessionTodos(todos, req.session);
   broadcast(todos);

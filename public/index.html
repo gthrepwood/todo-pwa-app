@@ -22,6 +22,8 @@
       <a href="#" data-menu="about">ℹ️ About</a>
       <a href="#" data-menu="contact">📧 Contact</a>
       <a href="#" data-menu="toggle-done">👁️ Show completed</a>
+      <a href="#" data-menu="sort-default">📋 Sort by added</a>
+      <a href="#" data-menu="sort-alpha">A-Z Sort alphabetically</a>
       <a href="#" data-menu="clear-done">🚮 Clear completed</a>
       <a href="#" data-menu="save-db">💾 Save DB</a>
       <a href="#" data-menu="load-db">📂 Load DB</a>
@@ -33,9 +35,10 @@
   <main>
     <div id="login-screen" class="hidden">
       <div class="login-container">
-        <h2>🔐 Login</h2>
+        <h2>🔐 Passkey</h2>
+        <p>This is a shared key to login to the same TODO list</p>
         <form id="login-form">
-          <input id="login-password" type="password" placeholder="Password" required/>
+          <input id="login-password" type="password" placeholder="Passkey" required/>
           <button type="submit">Sign in</button>
         </form>
         <p id="login-error" class="error hidden"></p>
