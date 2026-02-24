@@ -17,3 +17,6 @@ Thumbs.db
 package-lock.json
 yarn.lock
 
+backend/data/passwords.json
+backend/data/sessions.json
+backend/data/todos_*.json
