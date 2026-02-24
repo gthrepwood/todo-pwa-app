@@ -216,6 +216,39 @@ function renderTodos() {
 
     const span = document.createElement('span');
     span.textContent = todo.text;
+    // Make todo text editable on click
+    span.addEventListener('click', () => {
+      if (span.querySelector('input')) return; // Already editing
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = todo.text;
+      input.style.cssText = 'width: 100%; padding: 2px 4px; font: inherit;';
+      
+      const finishEdit = async () => {
+        const newText = input.value.trim();
+        if (newText && newText !== todo.text) {
+          // Save to server
+          await fetchWithLogging(`${API_BASE}/${todo.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify({ text: newText })
+          });
+        } else {
+          span.textContent = todo.text; // Revert display
+        }
+      };
+      
+      input.addEventListener('blur', finishEdit);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { input.blur(); }
+        if (e.key === 'Escape') { span.textContent = todo.text; }
+      });
+      
+      span.textContent = '';
+      span.appendChild(input);
+      input.focus();
+      input.select();
+    });
 
     const toggleBtn = document.createElement('button');
     toggleBtn.textContent = todo.done ? '↩' : '🆗';
