@@ -89,6 +89,12 @@ docker ps | grep :3004
 
 ---
 
+## 🌐 Hosting
+
+This app can be hosted on [Dynu.com](https://www.dynu.com/) because it supports sub-sites (path-based routing).
+
+---
+
 ## ⚙️ Environment Variables
 
 | Variable | Default | Description |
