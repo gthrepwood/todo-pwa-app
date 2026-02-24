@@ -767,32 +767,32 @@ node tests/test-undo.js
 ## Architecture Summary
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Client (PWA)                                │
+┌────────────────────────────────────────────────────────────────────┐
+│                         Client (PWA)                               │
 │  ┌─────────────────────────────────────────────────────────────┐   │
 │  │  HTML5 / CSS3 / JavaScript (ES6+)                           │   │
-│  │  Service Worker (offline caching)                            │   │
+│  │  Service Worker (offline caching)                           │   │
 │  │  WebSocket Client (real-time sync)                          │   │
 │  │  Fullscreen API (immersive mode)                            │   │
-│  │  LocalStorage (offline cache)                                │   │
+│  │  LocalStorage (offline cache)                               │   │
 │  └─────────────────────────────────────────────────────────────┘   │
-└────────────────────────────────────────┬────────────────────────────┘
+└────────────────────────────────────────┬───────────────────────────┘
                                          │ HTTPS / WebSocket
                                          │ (encrypted, real-time)
-┌────────────────────────────────────────┴────────────────────────────┐
-│                        Node.js Backend                              │
+┌────────────────────────────────────────┴───────────────────────────┐
+│                        Node.js Backend                             │
 │  ┌─────────────────────────────────────────────────────────────┐   │
-│  │  Express.js - HTTP server & routing                          │   │
+│  │  Express.js - HTTP server & routing                         │   │
 │  │  WebSocket (ws) - Real-time broadcasting                    │   │
-│  │  Session Management - Token-based auth                       │   │
+│  │  Session Management - Token-based auth                      │   │
 │  │  Password Security - SHA-256 hashing                        │   │
 │  │  File I/O - JSON data persistence                           │   │
-│  │  HTTPS Support - SSL/TLS certificates                        │   │
+│  │  HTTPS Support - SSL/TLS certificates                       │   │
 │  └─────────────────────────────────────────────────────────────┘   │
-└────────────────────────────────────────┬────────────────────────────┘
+└────────────────────────────────────────┬───────────────────────────┘
                                          │
-┌────────────────────────────────────────┴────────────────────────────┐
-│                      Data Storage Layer                             │
+┌────────────────────────────────────────┴───────────────────────────┐
+│                      Data Storage Layer                            │
 │  ┌─────────────────────────────────────────────────────────────┐   │
 │  │  passwords.json      - Password hashes                      │   │
 │  │  sessions.json       - Active user sessions                 │   │
@@ -800,7 +800,7 @@ node tests/test-undo.js
 │  │  key.pem            - SSL private key                       │   │
 │  │  cert.pem           - SSL certificate                       │   │
 │  └─────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
