@@ -66,8 +66,6 @@ npm start
 
 Open [https://localhost:3004](https://localhost:3004) (or [http://localhost:3004](http://localhost:3004) if no certs).
 
-Default password: `ROZSA`
-
 ---
 
 ### 🐳 Docker
@@ -133,7 +131,7 @@ todo-pwa/
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| `POST` | `/api/auth/login` | ❌ | Login with password |
+| `POST` | `/api/auth/login` | ❌ | Login with passkey |
 | `POST` | `/api/auth/logout` | ✅ | Logout |
 | `GET` | `/api/todos` | ✅ | Get all todos |
 | `POST` | `/api/todos` | ✅ | Create a todo |

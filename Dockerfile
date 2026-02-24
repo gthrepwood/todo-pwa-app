@@ -15,7 +15,6 @@ COPY . .
 
 # 6. Environment variables with defaults
 ENV PORT=3004
-ENV PASSWORD=ROZSA
 
 # 7. Expose the port
 EXPOSE ${PORT}

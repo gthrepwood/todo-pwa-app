@@ -343,7 +343,6 @@ containers:
       - /mnt/user/appdata/todo-pwa/data:/app/data
     environment:
       - PORT=3004
-      - PASSWORD=YourSecurePassword
       - TZ=Europe/Budapest
     restart: unless-stopped
 ```
@@ -634,7 +633,6 @@ docker run -d \
   -p 3004:3004 \
   -v ./data:/app/data \
   -e PORT=3004 \
-  -e PASSWORD=YourPassword \
   todo-pwa:latest
 ```
 
