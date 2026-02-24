@@ -1,5 +1,5 @@
 # Dependencies
-node_modules/*
+node_modules/
 
 # SSL Certificates (generated locally)
 backend/data/key.pem
@@ -13,3 +13,7 @@ backend/data/cert.pem
 # OS
 .DS_Store
 Thumbs.db
+
+package-lock.json
+yarn.lock
+
