@@ -2,6 +2,7 @@ const express = require('express');
 const compression = require('compression');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const helmet = require('helmet');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
@@ -9,12 +10,19 @@ const https = require('https');
 const WebSocket = require('ws');
 const crypto = require('crypto');
 const axios = require('axios');
+const bcrypt = require('bcryptjs');
 
 // Load version from package.json
 const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
 const APP_VERSION = packageJson.version || '1.0.0';
 
 const app = express();
+
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable for development
+  crossOriginEmbedderPolicy: false
+}));
 
 // Enable GZIP compression for smaller responses
 // Enhanced compression for JS and CSS files
@@ -318,38 +326,96 @@ function savePasswords(passwords) {
   }
 }
 
-function getPasswordHash(password) {
+// Password hashing with bcrypt
+const BCRYPT_ROUNDS = 12;
+
+async function hashPassword(password) {
+  return await bcrypt.hash(password, BCRYPT_ROUNDS);
+}
+
+async function verifyPassword(password, hash) {
+  return await bcrypt.compare(password, hash);
+}
+
+// Legacy hash function for backward compatibility (used for file paths)
+function getDataHash(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
 
 function isNewPassword(password) {
   const passwords = loadPasswords();
-  const hash = getPasswordHash(password);
-  return !passwords[hash];
-}
-
-function registerPassword(password) {
-  const passwords = loadPasswords();
-  const hash = getPasswordHash(password);
-  
-  if (!passwords[hash]) {
-    passwords[hash] = {
-      createdAt: Date.now()
-    };
-    savePasswords(passwords);
-    
-    // Create empty todo file for this password
-    const todoFile = getTodoFilePath(hash);
-    if (!fs.existsSync(todoFile)) {
-      fs.writeFileSync(todoFile, JSON.stringify([], null, 2), 'utf8');
+  // Check if any stored hash matches
+  for (const [storedHash, data] of Object.entries(passwords)) {
+    if (data.bcryptHash) {
+      // New bcrypt format
+      return false; // Not new if we find any bcrypt hash
     }
   }
-  return hash;
+  return Object.keys(passwords).length === 0;
+}
+
+async function registerPassword(password) {
+  const passwords = loadPasswords();
+  const dataHash = getDataHash(password);
+  
+  // Check if already registered
+  if (passwords[dataHash]) {
+    return dataHash;
+  }
+  
+  // Create bcrypt hash
+  const bcryptHash = await hashPassword(password);
+  
+  passwords[dataHash] = {
+    createdAt: Date.now(),
+    bcryptHash: bcryptHash
+  };
+  savePasswords(passwords);
+  
+  // Create empty todo file for this password
+  const todoFile = getTodoFilePath(dataHash);
+  if (!fs.existsSync(todoFile)) {
+    fs.writeFileSync(todoFile, JSON.stringify([], null, 2), 'utf8');
+  }
+  return dataHash;
+}
+
+async function verifyAndRegisterPassword(password) {
+  const passwords = loadPasswords();
+  const dataHash = getDataHash(password);
+  
+  if (passwords[dataHash]) {
+    // User exists - verify password
+    if (passwords[dataHash].bcryptHash) {
+      const valid = await verifyPassword(password, passwords[dataHash].bcryptHash);
+      if (!valid) {
+        throw new Error('Invalid password');
+      }
+    }
+    return { hash: dataHash, isNew: false };
+  }
+  
+  // New user - create bcrypt hash
+  const bcryptHash = await hashPassword(password);
+  passwords[dataHash] = {
+    createdAt: Date.now(),
+    bcryptHash: bcryptHash
+  };
+  savePasswords(passwords);
+  
+  // Create empty todo file
+  const todoFile = getTodoFilePath(dataHash);
+  if (!fs.existsSync(todoFile)) {
+    fs.writeFileSync(todoFile, JSON.stringify([], null, 2), 'utf8');
+  }
+  
+  return { hash: dataHash, isNew: true };
 }
 
 function registerOAuthUser(passwordHash, provider, userInfo) {
   const passwords = loadPasswords();
   
+  // Store OAuth user with their data hash (not bcrypt for OAuth IDs)
   passwords[passwordHash] = {
     createdAt: Date.now(),
     oauthProvider: provider,
@@ -483,7 +549,7 @@ function broadcast(data, passwordHash = null) {
 const passwords = loadPasswords();
 if (Object.keys(passwords).length === 0 && fs.existsSync(path.join(DATA_DIR, 'todos.json'))) {
   // Migrate existing todos.json to password-based system
-  const defaultHash = getPasswordHash('ROZSA');
+  const defaultHash = getDataHash('ROZSA');
   registerPassword('ROZSA');
   const existingTodos = loadTodos('');
   if (existingTodos.length > 0) {
@@ -520,47 +586,57 @@ function requireAuth(req, res, next) {
 }
 
 // --- Auth Endpoints ---
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { password } = req.body;
   
   if (!password) {
     return res.status(400).json({ error: 'Password is required' });
   }
   
-  const passwordHash = getPasswordHash(password);
-  
-  // Check if this is a new password
-  const isNew = isNewPassword(password);
-  
-  // Register the password (saves to file and creates todo database if new)
-  registerPassword(password);
-  
-  // Create session
-  const token = crypto.randomBytes(32).toString('hex');
-  sessions.set(token, { 
-    createdAt: Date.now(),
-    passwordHash: passwordHash
-  });
-  saveSessions();
-  
-  res.json({ 
-    token,
-    isNewPassword: isNew,
-    message: isNew ? 'New password registered with personal todo database' : 'Login successful'
-  });
+  try {
+    // Verify password and register if new (async with bcrypt)
+    const { hash: passwordHash, isNew } = await verifyAndRegisterPassword(password);
+    
+    // Create session
+    const token = crypto.randomBytes(32).toString('hex');
+    sessions.set(token, { 
+      createdAt: Date.now(),
+      passwordHash: passwordHash
+    });
+    saveSessions();
+    
+    // Set HTTP-only cookie for token
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: !isHttps,
+      sameSite: 'lax',
+      maxAge: SESSION_MAX_AGE
+    });
+    
+    res.json({ 
+      token, // Kept for backward compatibility, but cookie is preferred
+      isNewPassword: isNew,
+      message: isNew ? 'New password registered with personal todo database' : 'Login successful'
+    });
+  } catch (err) {
+    res.status(401).json({ error: err.message || 'Authentication failed' });
+  }
 });
 
 app.post('/api/auth/logout', (req, res) => {
-  const token = req.headers.authorization?.split(' ')[1];
+  // Try to get token from cookie first, then from header
+  const token = req.cookies?.authToken || req.headers.authorization?.split(' ')[1];
   if (token) {
     sessions.delete(token);
     saveSessions();
+    // Clear cookie
+    res.clearCookie('authToken');
   }
   res.json({ message: 'Logged out' });
 });
 
 app.get('/api/auth/check', (req, res) => {
-  const token = req.headers.authorization?.split(' ')[1];
+  const token = req.cookies?.authToken || req.headers.authorization?.split(' ')[1];
   if (token && sessions.has(token)) {
     const session = sessions.get(token);
     res.json({ authenticated: true, isNewPassword: false });
@@ -631,7 +707,7 @@ app.get('/api/auth/oauth/callback', async (req, res) => {
     
     // Create or get OAuth user
     const oauthId = getOAuthUserId(provider, userInfo.id || userInfo.email);
-    const passwordHash = getPasswordHash(oauthId);
+    const passwordHash = getDataHash(oauthId);
     
     // Check if new user
     const passwords = loadPasswords();

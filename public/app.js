@@ -1,6 +1,7 @@
 const API_BASE = '/api/todos';
 const AUTH_API = '/api/auth';
 
+// Check for token in localStorage first (backward compatibility)
 let authToken = localStorage.getItem('authToken');
 
 const form = document.getElementById('todo-form');
@@ -67,7 +68,10 @@ async function fetchWithLogging(url, options) {
   const method = options?.method || 'GET';
   console.log(`[API] ==> ${method} ${url}`);
   try {
-    const response = await fetch(url, options);
+    const response = await fetch(url, {
+      ...options,
+      credentials: 'include' // Include cookies in all requests
+    });
     console.log(`[API] <== ${method} ${url} - ${response.status} ${response.statusText}`);
     return response;
   } catch (error) {
@@ -146,7 +150,8 @@ ws.onerror = (error) => {
 async function loadTodos() {
   try {
     const response = await fetchWithLogging(API_BASE, {
-      headers: getAuthHeaders()
+      headers: getAuthHeaders(),
+      credentials: 'include'
     });
     if (response.status === 401) {
       authToken = null;
@@ -238,7 +243,8 @@ function renderTodos() {
     return a.id - b.id;
   });
 
-  list.innerHTML = '';
+  // Use DocumentFragment for better performance
+  const fragment = document.createDocumentFragment();
   console.log(`[RENDER] Rendering ${todosToRender.length} todo items to the DOM.`);
   todosToRender.forEach(todo => {
     const li = document.createElement('li');
@@ -298,8 +304,10 @@ function renderTodos() {
     li.appendChild(span);
     li.appendChild(toggleBtn);
     li.appendChild(delBtn);
-    list.appendChild(li);
+    fragment.appendChild(li);
   });
+  // Single DOM reflow instead of multiple
+  list.appendChild(fragment);
 }
 
 function showUndoButton() {
