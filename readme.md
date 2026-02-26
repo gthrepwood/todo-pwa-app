@@ -246,9 +246,11 @@ services:
     restart: unless-stopped
 ```
 
-## kill running app
+## Kill running app
 
-`Stop-Process -Id (Get-NetTCPConnection -LocalPort 3004).OwningProcess -Force
+```
+Stop-Process -Id (Get-NetTCPConnection -LocalPort 3004).OwningProcess -Force
+```
 
 ## 📄 License
 
