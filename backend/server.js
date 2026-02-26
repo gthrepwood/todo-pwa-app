@@ -7,6 +7,7 @@ const http = require('http');
 const https = require('https');
 const WebSocket = require('ws');
 const crypto = require('crypto');
+const axios = require('axios');
 
 // Load version from package.json
 const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
@@ -15,7 +16,19 @@ const APP_VERSION = packageJson.version || '1.0.0';
 const app = express();
 
 // Enable GZIP compression for smaller responses
-app.use(compression());
+// Enhanced compression for JS and CSS files
+app.use(compression({
+  level: 6, // Compression level 0-9, 6 is good balance
+  threshold: 512, // Compress responses larger than 512 bytes
+  filter: (req, res) => {
+    // Don't compress if client doesn't support gzip
+    if (req.headers['accept-encoding'] === undefined) {
+      return false;
+    }
+    // Use default filter for other responses
+    return compression.filter(req, res);
+  }
+}));
 
 // SSL certificates
 const SSL_DIR = path.join(__dirname, 'data');
@@ -39,6 +52,81 @@ if (isHttps) {
 const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3004;
+
+// OAuth Configuration
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
+const MICROSOFT_CLIENT_ID = process.env.MICROSOFT_CLIENT_ID || '';
+const MICROSOFT_CLIENT_SECRET = process.env.MICROSOFT_CLIENT_SECRET || '';
+const MICROSOFT_TENANT_ID = process.env.MICROSOFT_TENANT_ID || 'common';
+const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+const OAUTH_REDIRECT_URI = process.env.OAUTH_REDIRECT_URI || `${BASE_URL}/api/auth/oauth/callback`;
+
+// Generate OAuth authorization URLs
+function getGoogleAuthUrl() {
+  const scopes = ['https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/userinfo.profile'];
+  return `https://accounts.google.com/o/oauth2/v2/auth?` +
+    `client_id=${GOOGLE_CLIENT_ID}` +
+    `&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}` +
+    `&response_type=code` +
+    `&scope=${encodeURIComponent(scopes.join(' '))}` +
+    `&access_type=offline` +
+    `&state=google`;
+}
+
+function getMicrosoftAuthUrl() {
+  const scopes = ['User.Read'];
+  return `https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize?` +
+    `client_id=${MICROSOFT_CLIENT_ID}` +
+    `&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}` +
+    `&response_type=code` +
+    `&scope=${encodeURIComponent(scopes.join(' '))}` +
+    `&state=microsoft`;
+}
+
+// Exchange authorization code for tokens
+async function exchangeGoogleCode(code) {
+  const response = await axios.post('https://oauth2.googleapis.com/token', {
+    client_id: GOOGLE_CLIENT_ID,
+    client_secret: GOOGLE_CLIENT_SECRET,
+    code,
+    grant_type: 'authorization_code',
+    redirect_uri: OAUTH_REDIRECT_URI
+  });
+  return response.data;
+}
+
+async function exchangeMicrosoftCode(code) {
+  const response = await axios.post(`https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/token`, {
+    client_id: MICROSOFT_CLIENT_ID,
+    client_secret: MICROSOFT_CLIENT_SECRET,
+    code,
+    grant_type: 'authorization_code',
+    redirect_uri: OAUTH_REDIRECT_URI,
+    scope: 'User.Read'
+  });
+  return response.data;
+}
+
+// Get user info from OAuth provider
+async function getGoogleUserInfo(accessToken) {
+  const response = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  return response.data;
+}
+
+async function getMicrosoftUserInfo(accessToken) {
+  const response = await axios.get('https://graph.microsoft.com/v1.0/me', {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  return response.data;
+}
+
+// Generate unique ID for OAuth user
+function getOAuthUserId(provider, providerId) {
+  return `${provider}:${providerId}`;
+}
 
 // Data directory
 const DATA_DIR = path.join(__dirname, 'data');
@@ -77,6 +165,14 @@ const sessions = loadSessions();
 
 // Save sessions on server shutdown
 process.on('SIGINT', () => {
+  // Flush all pending async writes
+  pendingWrites.forEach((timeoutId, passwordHash) => {
+    clearTimeout(timeoutId);
+    const cached = writeCache.get(passwordHash);
+    if (cached) {
+      saveTodosSync(cached.todos, passwordHash, cached.sortMode);
+    }
+  });
   saveSessions();
   process.exit();
 });
@@ -212,6 +308,25 @@ function registerPassword(password) {
   return hash;
 }
 
+function registerOAuthUser(passwordHash, provider, userInfo) {
+  const passwords = loadPasswords();
+  
+  passwords[passwordHash] = {
+    createdAt: Date.now(),
+    oauthProvider: provider,
+    email: userInfo.email,
+    name: userInfo.name,
+    picture: userInfo.picture
+  };
+  savePasswords(passwords);
+  
+  // Create empty todo file for this OAuth user
+  const todoFile = getTodoFilePath(passwordHash);
+  if (!fs.existsSync(todoFile)) {
+    fs.writeFileSync(todoFile, JSON.stringify([], null, 2), 'utf8');
+  }
+}
+
 // --- Todo database path function ---
 
 function getTodoFilePath(passwordHash) {
@@ -220,7 +335,19 @@ function getTodoFilePath(passwordHash) {
 
 // --- Helper functions for file handling (per-password) ---
 
+// Debounce cache for pending writes (per password hash)
+// Configurable debounce time (default 100ms for faster response, can be increased via env)
+const DB_WRITE_DEBOUNCE_MS = parseInt(process.env.DB_WRITE_DEBOUNCE_MS) || 100;
+const writeCache = new Map();
+const pendingWrites = new Map(); // passwordHash -> setTimeout ID
+
 function loadTodos(passwordHash) {
+  // First check cache for latest data
+  const cached = writeCache.get(passwordHash);
+  if (cached) {
+    return cached;
+  }
+  
   const todoFile = getTodoFilePath(passwordHash);
   try {
     if (fs.existsSync(todoFile)) {
@@ -238,13 +365,52 @@ function loadTodos(passwordHash) {
   return { todos: [], sortMode: 'default' };
 }
 
-function saveTodos(todos, passwordHash, sortMode = 'default') {
+// Async write with debouncing - batches multiple writes within debounce period
+function saveTodosAsync(passwordHash, todos, sortMode = 'default') {
+  // Update cache immediately for reads
+  const data = { todos, sortMode };
+  writeCache.set(passwordHash, data);
+  
+  // Clear existing pending write
+  if (pendingWrites.has(passwordHash)) {
+    clearTimeout(pendingWrites.get(passwordHash));
+  }
+  
+  // Schedule async write with debounce
+  const timeoutId = setTimeout(() => {
+    const todoFile = getTodoFilePath(passwordHash);
+    const cached = writeCache.get(passwordHash);
+    const dataToWrite = JSON.stringify({ todos: cached?.todos || todos, sortMode: cached?.sortMode || sortMode }, null, 2);
+    
+    fs.writeFile(todoFile, dataToWrite, 'utf8', (err) => {
+      if (err) {
+        console.error('Error writing todos file:', err);
+      } else {
+        console.log(`[DB] Async write completed for ${passwordHash.substring(0, 8)}...`);
+      }
+    });
+    
+    pendingWrites.delete(passwordHash);
+  }, DB_WRITE_DEBOUNCE_MS);
+  
+  pendingWrites.set(passwordHash, timeoutId);
+}
+
+// Synchronous save (for shutdown/cleanup)
+function saveTodosSync(todos, passwordHash, sortMode = 'default') {
   const todoFile = getTodoFilePath(passwordHash);
   try {
     fs.writeFileSync(todoFile, JSON.stringify({ todos, sortMode }, null, 2), 'utf8');
+    // Clear from cache after sync write
+    writeCache.delete(passwordHash);
   } catch (err) {
     console.error('Error writing todos file:', err);
   }
+}
+
+// Backward compatibility - use async version
+function saveTodos(todos, passwordHash, sortMode = 'default') {
+  return saveTodosAsync(passwordHash, todos, sortMode);
 }
 
 // --- Helper to get todos for a session ---
@@ -360,6 +526,93 @@ app.get('/api/auth/check', (req, res) => {
     res.json({ authenticated: true, isNewPassword: false });
   } else {
     res.json({ authenticated: false });
+  }
+});
+
+// --- OAuth Endpoints ---
+
+// Get OAuth providers info
+app.get('/api/auth/oauth/providers', (req, res) => {
+  res.json({
+    google: !!GOOGLE_CLIENT_ID,
+    microsoft: !!MICROSOFT_CLIENT_ID
+  });
+});
+
+// Initiate Google OAuth
+app.get('/api/auth/oauth/google', (req, res) => {
+  if (!GOOGLE_CLIENT_ID) {
+    return res.status(501).json({ error: 'Google OAuth not configured' });
+  }
+  res.json({ authUrl: getGoogleAuthUrl() });
+});
+
+// Initiate Microsoft OAuth
+app.get('/api/auth/oauth/microsoft', (req, res) => {
+  if (!MICROSOFT_CLIENT_ID) {
+    return res.status(501).json({ error: 'Microsoft OAuth not configured' });
+  }
+  res.json({ authUrl: getMicrosoftAuthUrl() });
+});
+
+// OAuth callback handler
+app.get('/api/auth/oauth/callback', async (req, res) => {
+  const { code, state } = req.query;
+  
+  if (!code || !state) {
+    return res.redirect('/?error=oauth_failed');
+  }
+  
+  const provider = state;
+  
+  try {
+    let userInfo, accessToken;
+    
+    if (provider === 'google') {
+      const tokens = await exchangeGoogleCode(code);
+      accessToken = tokens.access_token;
+      userInfo = await getGoogleUserInfo(accessToken);
+    } else if (provider === 'microsoft') {
+      const tokens = await exchangeMicrosoftCode(code);
+      accessToken = tokens.access_token;
+      userInfo = await getMicrosoftUserInfo(accessToken);
+    } else {
+      return res.redirect('/?error=invalid_provider');
+    }
+    
+    // Log OAuth user info
+    console.log(`\n🔐 OAuth ${provider} login successful!`);
+    console.log('📋 User info received:', JSON.stringify(userInfo, null, 2));
+    
+    // Create or get OAuth user
+    const oauthId = getOAuthUserId(provider, userInfo.id || userInfo.email);
+    const passwordHash = getPasswordHash(oauthId);
+    
+    // Check if new user
+    const passwords = loadPasswords();
+    const isNew = !passwords[passwordHash];
+    
+    // Register OAuth user
+    if (isNew) {
+      registerOAuthUser(passwordHash, provider, userInfo);
+    }
+    
+    // Create session
+    const token = crypto.randomBytes(32).toString('hex');
+    sessions.set(token, {
+      createdAt: Date.now(),
+      passwordHash: passwordHash,
+      oauthProvider: provider,
+      email: userInfo.email
+    });
+    saveSessions();
+    
+    // Redirect to app with token
+    res.redirect(`/?oauth_token=${token}&oauth_new=${isNew}&provider=${provider}`);
+    
+  } catch (err) {
+    console.error('OAuth callback error:', err.message);
+    res.redirect('/?error=oauth_failed');
   }
 });
 

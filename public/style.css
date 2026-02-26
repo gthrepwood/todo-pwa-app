@@ -165,6 +165,38 @@ footer a {
   margin-top: 0.5rem;
 }
 
+/* OAuth Buttons */
+.oauth-buttons {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.oauth-buttons p {
+  color: #666;
+  font-size: 0.875rem;
+  margin: 0 0 0.75rem 0;
+}
+
+.oauth-btn {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.5rem;
+  padding: 0.75rem;
+  background: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.oauth-btn:hover {
+  background: #e8e8e8;
+  border-color: #ccc;
+}
+
 /* Hamburger Menu */
 .menu-toggle {
   position: absolute;

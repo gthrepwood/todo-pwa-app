@@ -21,3 +21,4 @@ backend/data/passwords.json
 backend/data/sessions.json
 backend/data/todos_*.json
 backend/data/archive/
+notes.md

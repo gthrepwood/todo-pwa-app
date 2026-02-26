@@ -104,6 +104,46 @@ This app can be hosted on [Dynu.com](https://www.dynu.com/) because it supports 
 | ----------------------- | ---------- | ----------------------------------------- |
 | `PORT`                  | `3004`     | Server port                               |
 | `SESSION_MAX_AGE_HOURS` | `60`       | Session timeout in mins (default: 60 min) |
+| `BASE_URL`              | *(auto)*   | Base URL for OAuth callback               |
+| `GOOGLE_CLIENT_ID`      | *(none)*   | Google OAuth2 Client ID                   |
+| `GOOGLE_CLIENT_SECRET`  | *(none)*   | Google OAuth2 Client Secret               |
+| `MICROSOFT_CLIENT_ID`  | *(none)*   | Microsoft OAuth2 Client ID                |
+| `MICROSOFT_CLIENT_SECRET` | *(none)* | Microsoft OAuth2 Client Secret            |
+| `MICROSOFT_TENANT_ID`  | `common`   | Microsoft Tenant ID (common, organizations, or tenant ID) |
+
+---
+
+## 🔐 OAuth Setup
+
+### Google OAuth2
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select existing
+3. Go to **APIs & Services** → **OAuth consent screen**
+4. Configure consent screen (External)
+5. Add scopes: `.../auth/userinfo.email`, `.../auth/userinfo.profile`
+6. Go to **Credentials** → **Create Credentials** → **OAuth client ID**
+7. Set Application type to **Web**
+8. Add authorized redirect URI: `https://your-domain.com/api/auth/oauth/callback`
+9. Copy **Client ID** and **Client Secret** to your environment
+
+### Microsoft OAuth2
+
+1. Go to [Azure Portal](https://portal.azure.com/)
+2. Go to **App registrations** → **New registration**
+3. Set redirect URI: Web, `https://your-domain.com/api/auth/oauth/callback`
+4. Go to **Certificates & secrets** → **New client secret**
+5. Go to **API permissions** → **Microsoft Graph** → **Delegated permissions** → **User.Read**
+6. Copy **Application (client) ID** and create/collect **Client Secret**
+
+### Running with OAuth
+
+```bash
+# With both providers
+GOOGLE_CLIENT_ID=xxx GOOGLE_CLIENT_SECRET=xxx \
+MICROSOFT_CLIENT_ID=xxx MICROSOFT_CLIENT_SECRET=xxx \
+BASE_URL=https://your-domain.com npm start
+```
 
 ---
 

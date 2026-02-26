@@ -41,6 +41,10 @@ function showLoginScreen() {
   document.getElementById('todo-list').classList.add('hidden');
   document.getElementById('undo-btn').classList.add('hidden');
   document.getElementById('login-screen').classList.remove('hidden');
+  
+  // Load OAuth providers for this server
+  loadOAuthProviders();
+  
   // Update menu: show Login, hide Logout
   const loginLink = document.querySelector('[data-menu="login"]');
   const logoutLink = document.querySelector('[data-menu="logout"]');
@@ -164,7 +168,11 @@ async function loadTodos() {
 }
 
 // Check if logged in on startup
-if (authToken) {
+// Handle OAuth callback first
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.has('oauth_token')) {
+  handleOAuthCallback();
+} else if (authToken) {
   // Validate session first, assume we are logged in until proven otherwise
   showMainScreen();
   fetchWithLogging('/api/auth/check', { headers: getAuthHeaders() })
@@ -423,6 +431,88 @@ loginForm.addEventListener('submit', async e => {
     loginError.classList.remove('hidden');
   }
 });
+
+// OAuth Login
+let oauthProviders = { google: false, microsoft: false };
+
+async function loadOAuthProviders() {
+  try {
+    const response = await fetch(`${AUTH_API}/oauth/providers`);
+    oauthProviders = await response.json();
+    
+    // Show/hide OAuth buttons based on configuration
+    const googleBtn = document.getElementById('oauth-google-btn');
+    const microsoftBtn = document.getElementById('oauth-microsoft-btn');
+    const oauthSection = document.querySelector('.oauth-buttons');
+    
+    const hasAnyProvider = oauthProviders.google || oauthProviders.microsoft;
+    
+    if (oauthSection) oauthSection.classList.toggle('hidden', !hasAnyProvider);
+    if (googleBtn) googleBtn.classList.toggle('hidden', !oauthProviders.google);
+    if (microsoftBtn) microsoftBtn.classList.toggle('hidden', !oauthProviders.microsoft);
+  } catch (err) {
+    console.error('Failed to load OAuth providers:', err);
+    // Hide OAuth section if API fails
+    const oauthSection = document.querySelector('.oauth-buttons');
+    if (oauthSection) oauthSection.classList.add('hidden');
+  }
+}
+
+async function oauthLogin(provider) {
+  try {
+    const response = await fetch(`${AUTH_API}/oauth/${provider}`);
+    const data = await response.json();
+    
+    if (data.authUrl) {
+      // Redirect to OAuth provider
+      window.location.href = data.authUrl;
+    } else if (data.error) {
+      loginError.textContent = data.error;
+      loginError.classList.remove('hidden');
+    }
+  } catch (err) {
+    loginError.textContent = `Failed to initiate ${provider} login`;
+    loginError.classList.remove('hidden');
+  }
+}
+
+// Handle OAuth callback
+function handleOAuthCallback() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const oauthToken = urlParams.get('oauth_token');
+  const oauthNew = urlParams.get('oauth_new');
+  const provider = urlParams.get('provider');
+  const error = urlParams.get('error');
+  
+  if (error) {
+    loginError.textContent = `OAuth error: ${error}`;
+    loginError.classList.remove('hidden');
+    // Clean URL
+    window.history.replaceState({}, document.title, '/');
+    return;
+  }
+  
+  if (oauthToken) {
+    // Store token and login
+    authToken = oauthToken;
+    localStorage.setItem('authToken', authToken);
+    
+    // Clean URL
+    window.history.replaceState({}, document.title, '/');
+    
+    // Show success message for new users
+    if (oauthNew === 'true') {
+      showMessage(`Welcome! Your ${provider} account is now linked to your todo list.`);
+    }
+    
+    // Load todos
+    loadTodos();
+  }
+}
+
+// Add OAuth button listeners
+document.getElementById('oauth-google-btn')?.addEventListener('click', () => oauthLogin('google'));
+document.getElementById('oauth-microsoft-btn')?.addEventListener('click', () => oauthLogin('microsoft'));
 
 // --- Menu Toggle ---
 const menuToggle = document.getElementById('menu-toggle');
