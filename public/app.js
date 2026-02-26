@@ -170,8 +170,31 @@ async function loadTodos() {
 // Check if logged in on startup
 // Handle OAuth callback first
 const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.has('oauth_token')) {
-  handleOAuthCallback();
+if (urlParams.has('oauth_complete')) {
+  // OAuth completed - token is in cookie
+  const oauthNew = urlParams.get('oauth_new');
+  const provider = urlParams.get('provider');
+  const error = urlParams.get('error');
+  
+  if (error) {
+    loginError.textContent = `OAuth error: ${error}`;
+    loginError.classList.remove('hidden');
+  } else {
+    // Token should be in cookie - fetch it
+    fetch(`${AUTH_API}/check`, { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.authenticated) {
+          // Show success message for new users
+          if (oauthNew === 'true') {
+            showMessage(`Welcome! Your ${provider} account is now linked to your todo list.`);
+          }
+          loadTodos();
+        }
+      });
+  }
+  // Clean URL
+  window.history.replaceState({}, document.title, '/');
 } else if (authToken) {
   // Validate session first, assume we are logged in until proven otherwise
   showMainScreen();
@@ -476,7 +499,7 @@ async function oauthLogin(provider) {
   }
 }
 
-// Handle OAuth callback
+// Handle OAuth callback (legacy URL-based - kept for compatibility)
 function handleOAuthCallback() {
   const urlParams = new URLSearchParams(window.location.search);
   const oauthToken = urlParams.get('oauth_token');

@@ -106,3 +106,9 @@ The current test scripts do **not** include authentication headers. If the serve
 | Delete + undo | Deleted items restored to original state |
 | Multi-delete + undo all | All items restored in one operation |
 | Toggle + undo | `done` flag reverted correctly |
+
+## Other
+
+```
+Stop-Process -Id (Get-NetTCPConnection -LocalPort 3004).OwningProcess -Force
+```

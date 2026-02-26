@@ -1,6 +1,7 @@
 const express = require('express');
 const compression = require('compression');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
@@ -25,7 +26,11 @@ app.use(compression({
     if (req.headers['accept-encoding'] === undefined) {
       return false;
     }
-    // Use default filter for other responses
+    // Don't compress if the response has its own encoding
+    if (res.getHeader('Content-Encoding')) {
+      return false;
+    }
+    // Use default filter for other responses (compresses HTML, JS, CSS, JSON)
     return compression.filter(req, res);
   }
 }));
@@ -62,26 +67,60 @@ const MICROSOFT_TENANT_ID = process.env.MICROSOFT_TENANT_ID || 'common';
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 const OAUTH_REDIRECT_URI = process.env.OAUTH_REDIRECT_URI || `${BASE_URL}/api/auth/oauth/callback`;
 
+// OAuth state storage for CSRF protection
+const oauthStateStore = new Map(); // state -> { provider, createdAt }
+const OAUTH_STATE_TTL = 10 * 60 * 1000; // 10 minutes
+
+// Generate OAuth state with CSRF protection
+function generateOAuthState(provider) {
+  const state = crypto.randomBytes(32).toString('hex');
+  oauthStateStore.set(state, { provider, createdAt: Date.now() });
+  // Clean up old states periodically
+  if (oauthStateStore.size > 100) {
+    const now = Date.now();
+    for (const [key, value] of oauthStateStore) {
+      if (now - value.createdAt > OAUTH_STATE_TTL) {
+        oauthStateStore.delete(key);
+      }
+    }
+  }
+  return state;
+}
+
+// Validate OAuth state
+function validateOAuthState(state) {
+  const stateData = oauthStateStore.get(state);
+  if (!stateData) return null;
+  if (Date.now() - stateData.createdAt > OAUTH_STATE_TTL) {
+    oauthStateStore.delete(state);
+    return null;
+  }
+  oauthStateStore.delete(state);
+  return stateData.provider;
+}
+
 // Generate OAuth authorization URLs
 function getGoogleAuthUrl() {
   const scopes = ['https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/userinfo.profile'];
+  const state = generateOAuthState('google');
   return `https://accounts.google.com/o/oauth2/v2/auth?` +
     `client_id=${GOOGLE_CLIENT_ID}` +
     `&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}` +
     `&response_type=code` +
     `&scope=${encodeURIComponent(scopes.join(' '))}` +
     `&access_type=offline` +
-    `&state=google`;
+    `&state=${state}`;
 }
 
 function getMicrosoftAuthUrl() {
   const scopes = ['User.Read'];
+  const state = generateOAuthState('microsoft');
   return `https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize?` +
     `client_id=${MICROSOFT_CLIENT_ID}` +
     `&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}` +
     `&response_type=code` +
     `&scope=${encodeURIComponent(scopes.join(' '))}` +
-    `&state=microsoft`;
+    `&state=${state}`;
 }
 
 // Exchange authorization code for tokens
@@ -453,6 +492,7 @@ if (Object.keys(passwords).length === 0 && fs.existsSync(path.join(DATA_DIR, 'to
 }
 
 app.use(cors());
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
@@ -563,7 +603,12 @@ app.get('/api/auth/oauth/callback', async (req, res) => {
     return res.redirect('/?error=oauth_failed');
   }
   
-  const provider = state;
+  // Validate state for CSRF protection
+  const provider = validateOAuthState(state);
+  if (!provider) {
+    console.error('OAuth state validation failed - invalid or expired state');
+    return res.redirect('/?error=oauth_invalid_state');
+  }
   
   try {
     let userInfo, accessToken;
@@ -607,8 +652,16 @@ app.get('/api/auth/oauth/callback', async (req, res) => {
     });
     saveSessions();
     
-    // Redirect to app with token
-    res.redirect(`/?oauth_token=${token}&oauth_new=${isNew}&provider=${provider}`);
+    // Set token as HTTP-only cookie for security (instead of URL)
+    res.cookie('oauth_token', token, {
+      httpOnly: true,
+      secure: !isHttps, // secure in production (HTTPS)
+      sameSite: 'lax',
+      maxAge: SESSION_MAX_AGE
+    });
+    
+    // Redirect to app without token in URL
+    res.redirect(`/?oauth_complete=true&oauth_new=${isNew}&provider=${provider}`);
     
   } catch (err) {
     console.error('OAuth callback error:', err.message);
