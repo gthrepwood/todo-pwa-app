@@ -2,6 +2,8 @@
 
 > A lightweight, real-time Progressive Web App for managing your tasks — accessible from any device, anywhere.
 
+*This project was created with the help of **Kilo Code** and **Gemini**.*
+
 ---
 
 ## ✨ Features
@@ -233,6 +235,10 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Etc/UTC
+      - GOOGLE_CLIENT_ID=XXXXXX
+      - GOOGLE_CLIENT_SECRET=XXXXXX
+      - BASE_URL=https://XXXXXX
+    ports:      
     ports:
       - 3004:3004
     restart: unless-stopped

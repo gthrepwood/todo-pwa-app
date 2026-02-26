@@ -785,7 +785,6 @@ app.post('/api/todos', requireAuth, (req, res) => {
 
 app.put('/api/todos', requireAuth, (req, res) => {
   const newTodos = req.body;
-  console.log('Received data for undo:', newTodos);
   if (!Array.isArray(newTodos)) {
     return res.status(400).json({ error: 'Invalid data format' });
   }

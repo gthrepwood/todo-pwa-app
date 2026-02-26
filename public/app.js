@@ -32,6 +32,9 @@ let undoTimeout = null;
 // Initial render from cache
 renderTodos();
 
+// Focus the input field on page load
+input.focus();
+
 // --- Authentication ---
 function getAuthHeaders() {
   return authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
@@ -243,6 +246,9 @@ function renderTodos() {
     return a.id - b.id;
   });
 
+  // Clear existing list before rendering
+  list.innerHTML = '';
+  
   // Use DocumentFragment for better performance
   const fragment = document.createDocumentFragment();
   console.log(`[RENDER] Rendering ${todosToRender.length} todo items to the DOM.`);
@@ -435,6 +441,7 @@ async function undo() {
     console.error('Undo error:', error);
   }
   hideUndoButton();
+  input.focus();
 }
 
 form.addEventListener('submit', e => {
@@ -447,6 +454,15 @@ form.addEventListener('submit', e => {
 
 showDoneToggle.addEventListener('change', renderTodos);
 undoBtn.addEventListener('click', undo);
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  // Ctrl+Z for undo
+  if (e.ctrlKey && e.key === 'z') {
+    e.preventDefault();
+    undo();
+  }
+});
 
 // Login form handling
 const loginForm = document.getElementById('login-form');
