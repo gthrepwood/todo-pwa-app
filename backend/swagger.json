@@ -1,0 +1,402 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Todo PWA API",
+    "description": "A lightweight, real-time Progressive Web App for managing tasks",
+    "version": "1.7.0",
+    "contact": {
+      "name": "Todo PWA"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3004",
+      "description": "Local development server (HTTP)"
+    },
+    {
+      "url": "https://localhost:3004",
+      "description": "Local development server (HTTPS)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Authentication endpoints"
+    },
+    {
+      "name": "Todos",
+      "description": "Todo management endpoints"
+    },
+    {
+      "name": "Other",
+      "description": "Other endpoints"
+    }
+  ],
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login with passkey",
+        "description": "Authenticate with a password to get access to your todo list",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["password"],
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "description": "User's passkey/password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "string",
+                      "description": "JWT authentication token"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid password"
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Logout",
+        "description": "End the current session",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Logout successful"
+          }
+        }
+      }
+    },
+    "/api/auth/check": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Check authentication status",
+        "description": "Verify if the user is authenticated",
+        "responses": {
+          "200": {
+            "description": "Returns authentication status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "authenticated": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/oauth/providers": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get OAuth providers",
+        "description": "Get information about configured OAuth providers",
+        "responses": {
+          "200": {
+            "description": "Returns OAuth provider configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "google": { "type": "boolean" },
+                    "microsoft": { "type": "boolean" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/version": {
+      "get": {
+        "tags": ["Other"],
+        "summary": "Get app version",
+        "description": "Returns the current application version",
+        "responses": {
+          "200": {
+            "description": "Returns version info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "version": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/todos": {
+      "get": {
+        "tags": ["Todos"],
+        "summary": "Get all todos",
+        "description": "Retrieve all todos for the authenticated user",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "List of todos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Todo"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Todos"],
+        "summary": "Create a new todo",
+        "description": "Add a new todo item",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["text"],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "description": "Todo text content"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Created todo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Todo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Todos"],
+        "summary": "Restore all todos (undo)",
+        "description": "Replace all todos with the provided array (used for undo functionality)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Todo"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Todos restored"
+          }
+        }
+      }
+    },
+    "/api/todos/{id}": {
+      "put": {
+        "tags": ["Todos"],
+        "summary": "Update a todo",
+        "description": "Update a specific todo item (toggle done, toggle favorite, edit text)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Todo ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "description": "New text (optional)"
+                  },
+                  "done": {
+                    "type": "boolean",
+                    "description": "Done status (optional)"
+                  },
+                  "favorite": {
+                    "type": "boolean",
+                    "description": "Favorite status (optional)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated todo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Todo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Todos"],
+        "summary": "Delete a todo",
+        "description": "Remove a specific todo item",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Todo ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Todo deleted"
+          }
+        }
+      }
+    },
+    "/api/sort": {
+      "put": {
+        "tags": ["Todos"],
+        "summary": "Update sort mode",
+        "description": "Set the sorting mode for todos (default or alpha)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["sortMode"],
+                "properties": {
+                  "sortMode": {
+                    "type": "string",
+                    "enum": ["default", "alpha"],
+                    "description": "Sort mode: 'default' (by added time) or 'alpha' (alphabetically)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sort mode updated"
+          }
+        }
+      }
+    },
+    "/api/archive": {
+      "post": {
+        "tags": ["Todos"],
+        "summary": "Archive completed todos",
+        "description": "Archive all completed todos",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Todos archived"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Todo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Unique todo identifier"
+          },
+          "text": {
+            "type": "string",
+            "description": "Todo text content"
+          },
+          "done": {
+            "type": "boolean",
+            "description": "Completion status"
+          },
+          "favorite": {
+            "type": "boolean",
+            "description": "Favorite status"
+          }
+        }
+      }
+    }
+  }
+}

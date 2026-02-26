@@ -70,6 +70,13 @@ npm start
 
 Open [https://localhost:3004](https://localhost:3004) (or [http://localhost:3004](http://localhost:3004) if no certs).
 
+**API Documentation:**
+
+```bash
+# Swagger UI - Interactive API documentation
+http://localhost:3004/api-docs
+```
+
 ---
 
 ### 🐳 Docker
@@ -149,42 +156,37 @@ BASE_URL=https://your-domain.com npm start
 
 ---
 
-## 📁 Project Structure
-
-```
-todo-pwa/
-├── backend/
-│   ├── server.js              # Express + WebSocket server
-│   └── data/
-│       ├── passwords.json     # Password storage (SHA256 hashes)
-│       ├── todos_<hash>.json  # Per-password todo databases
-│       ├── key.pem            # SSL private key (HTTPS)
-│       ├── cert.pem           # SSL certificate (HTTPS)
-│       └── generate-certs.js  # Certificate generator
-├── public/
-│   ├── index.html             # App shell
-│   ├── app.js                # Frontend logic
-│   ├── style.css             # Styles
-│   ├── favicon.svg           # ✅ Favicon
-│   ├── manifest.webmanifest
-│   └── service-worker.js     # Offline support
-├── Dockerfile
-└── package.json
-```
-
----
-
 ## 🔌 API Endpoints
 
-| Method   | Endpoint           | Auth | Description              |
-| -------- | ------------------ | ---- | ------------------------ |
-| `POST`   | `/api/auth/login`  | ❌   | Login with passkey       |
-| `POST`   | `/api/auth/logout` | ✅   | Logout                   |
-| `GET`    | `/api/todos`       | ✅   | Get all todos            |
-| `POST`   | `/api/todos`       | ✅   | Create a todo            |
-| `PUT`    | `/api/todos/:id`   | ✅   | Update a todo            |
-| `DELETE` | `/api/todos/:id`   | ✅   | Delete a todo            |
-| `PUT`    | `/api/todos`       | ✅   | Restore all todos (undo) |
+### Authentication
+
+| Method   | Endpoint                    | Auth | Description                    |
+| -------- | -------------------------- | ---- | ------------------------------ |
+| `POST`   | `/api/auth/login`           | ❌   | Login with passkey              |
+| `POST`   | `/api/auth/logout`          | ✅   | Logout                          |
+| `GET`    | `/api/auth/check`           | ❌   | Check authentication status      |
+| `GET`    | `/api/auth/oauth/providers` | ❌   | Get OAuth providers info        |
+| `GET`    | `/api/auth/oauth/google`    | ❌   | Initiate Google OAuth           |
+| `GET`    | `/api/auth/oauth/microsoft` | ❌   | Initiate Microsoft OAuth        |
+| `GET`    | `/api/auth/oauth/callback`   | ❌   | OAuth callback handler          |
+
+### Todos
+
+| Method   | Endpoint           | Auth | Description                    |
+| -------- | ------------------ | ---- | ------------------------------ |
+| `GET`    | `/api/todos`       | ✅   | Get all todos                  |
+| `POST`   | `/api/todos`       | ✅   | Create a new todo              |
+| `PUT`    | `/api/todos`       | ✅   | Restore all todos (undo)       |
+| `PUT`    | `/api/todos/:id`   | ✅   | Update a specific todo         |
+| `DELETE` | `/api/todos/:id`   | ✅   | Delete a specific todo         |
+
+### Other
+
+| Method   | Endpoint           | Auth | Description                    |
+| -------- | ------------------ | ---- | ------------------------------ |
+| `GET`    | `/api/version`      | ❌   | Get app version                |
+| `PUT`    | `/api/sort`        | ✅   | Update sort mode (default/alpha) |
+| `POST`   | `/api/archive`     | ✅   | Archive completed todos        |
 
 ---
 
