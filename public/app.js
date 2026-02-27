@@ -29,8 +29,8 @@ try {
 let undoStack = [];
 let undoTimeout = null;
 
-// Initial render from cache
-renderTodos();
+// Don't render immediately - wait for sort mode to be loaded from server
+// renderTodos() will be called after loadTodos() completes
 
 // Focus the input field on page load
 input.focus();
@@ -58,13 +58,18 @@ function showLoginScreen() {
 
 function showMainScreen() {
   document.getElementById('todo-form').classList.remove('hidden');
-  document.getElementById('todo-list').classList.remove('hidden');
+  // Don't show todo-list yet - wait for sort mode to be loaded first
   document.getElementById('login-screen').classList.add('hidden');
   // Update menu: hide Login, show Logout
   const loginLink = document.querySelector('[data-menu="login"]');
   const logoutLink = document.querySelector('[data-menu="logout"]');
   if (loginLink) loginLink.style.display = 'none';
   if (logoutLink) logoutLink.style.display = '';
+}
+
+function showTodoList() {
+  // Show the todo list after sort mode is loaded
+  document.getElementById('todo-list').classList.remove('hidden');
 }
 
 async function fetchWithLogging(url, options) {
@@ -169,6 +174,9 @@ async function loadTodos() {
     
     const newTodos = await response.json();
     updateAndCacheTodos(newTodos);
+    
+    // Show todo list only after sort mode is loaded
+    showTodoList();
   } catch (error) {
     console.error('Error loading todos:', error);
     showLoginScreen();
@@ -332,6 +340,18 @@ function hideUndoButton() {
 
 async function addTodo(text) {
   hideUndoButton();
+  
+  // Optimistic update: add to local array immediately for correct sorting
+  const tempId = Date.now(); // Temporary negative ID for optimistic insert
+  const newTodo = { 
+    id: tempId, 
+    text: text, 
+    done: false, 
+    favorite: false 
+  };
+  allTodos.push(newTodo);
+  renderTodos();
+  
   const response = await fetchWithLogging(API_BASE, {
     method: 'POST',
     headers: {
