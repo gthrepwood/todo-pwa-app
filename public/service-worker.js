@@ -35,9 +35,17 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Stale-while-revalidate strategy
   event.respondWith(
-    caches.match(request).then(cached => {
-      return cached || fetch(request).catch(() => cached);
+    caches.match(request).then(cachedResponse => {
+      const fetchPromise = fetch(request).then(networkResponse => {
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(request, networkResponse.clone());
+        });
+        return networkResponse;
+      });
+      // Return cached response immediately if available, otherwise wait for fetch
+      return cachedResponse || fetchPromise;
     })
   );
 });

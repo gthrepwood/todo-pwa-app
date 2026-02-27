@@ -991,7 +991,7 @@ app.post('/api/todos', requireAuth, (req, res) => {
   };
   todos.push(todo);
   saveSessionTodos(todos, req.session, sortMode);
-  broadcast(todos);
+  broadcast(todos, req.session.passwordHash);
 
   res.status(201).json(todo);
 });
@@ -1004,7 +1004,7 @@ app.put('/api/todos', requireAuth, (req, res) => {
 
   const data = getSessionTodos(req.session);
   saveSessionTodos(newTodos, req.session, data.sortMode);
-  broadcast(newTodos);
+  broadcast(newTodos, req.session.passwordHash);
 
   res.status(200).json({ message: 'Todos restored successfully' });
 });
@@ -1024,7 +1024,7 @@ app.put('/api/todos/:id', requireAuth, (req, res) => {
   if (typeof favorite === 'boolean') todo.favorite = favorite;
 
   saveSessionTodos(todos, req.session, sortMode);
-  broadcast(todos);
+  broadcast(todos, req.session.passwordHash);
   res.json(todo);
 });
 
@@ -1038,7 +1038,7 @@ app.delete('/api/todos/:id', requireAuth, (req, res) => {
 
   const removed = todos.splice(index, 1)[0];
   saveSessionTodos(todos, req.session, sortMode);
-  broadcast(todos);
+  broadcast(todos, req.session.passwordHash);
 
   res.json(removed);
 });
@@ -1098,6 +1098,27 @@ app.post('/api/archive', requireAuth, (req, res) => {
   }
 });
 
+/**
+ * Associates a WebSocket connection with a password hash using a session token.
+ * @param {WebSocket} ws - The WebSocket client.
+ * @param {string} token - The session token.
+ */
+function authenticateWebSocket(ws, token) {
+  if (token && sessions.has(token)) {
+    const session = sessions.get(token);
+    const sessionAge = Date.now() - session.createdAt;
+
+    if (sessionAge <= SESSION_MAX_AGE) {
+      ws.passwordHash = session.passwordHash;
+      console.log(`[WS] Authenticated connection for hash ${ws.passwordHash.substring(0, 8)}...`);
+    } else {
+      delete ws.passwordHash; // Session expired
+    }
+  } else {
+    delete ws.passwordHash; // Invalid token
+  }
+}
+
 // --- WebSocket Connection Handling ---
 wss.on('connection', (ws, req) => {
   const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
@@ -1106,9 +1127,17 @@ wss.on('connection', (ws, req) => {
 
   console.log(`[WS] Client connected | IP: ${clientIp} | UA: ${userAgent} | Time: ${connectTime} | Total clients: ${wss.clients.size}`);
 
-  // Send the current list of todos to the newly connected client
-  // Note: WebSocket doesn't have session, so we send empty list initially
-  // Client should authenticate via API first
+  ws.on('message', message => {
+    try {
+      const data = JSON.parse(message);
+      // Client sends auth token to associate the connection with a session
+      if (data.type === 'auth' && data.token) {
+        authenticateWebSocket(ws, data.token);
+      }
+    } catch (e) {
+      console.warn('[WS] Received invalid message:', message);
+    }
+  });
 
   ws.on('close', () => {
     const disconnectTime = new Date().toISOString();
@@ -1116,6 +1145,23 @@ wss.on('connection', (ws, req) => {
   });
 });
 
+/**
+ * Broadcast data to clients associated with a specific passwordHash.
+ * @param {object} data - The data to broadcast.
+ * @param {string} passwordHash - The password hash to broadcast to.
+ */
+function broadcast(data, passwordHash) {
+  if (!passwordHash) {
+    console.warn('[WS] Broadcast called without a passwordHash. Not broadcasting.');
+    return;
+  }
+  const payload = JSON.stringify(data);
+  wss.clients.forEach(client => {
+    if (client.passwordHash === passwordHash && client.readyState === WebSocket.OPEN) {
+      client.send(payload);
+    }
+  });
+}
 
 const PROTOCOL = isHttps ? 'https' : 'http';
 

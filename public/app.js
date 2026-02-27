@@ -301,60 +301,15 @@ function renderTodos() {
     const li = document.createElement('li');
     li.className = 'todo-item' + (todo.done ? ' done' : '');
     li.dataset.id = todo.id;
+    
+    // Use innerHTML for simpler and faster element creation
+    li.innerHTML = `
+      <button class="fav-btn">${todo.favorite ? '⭐' : '☆'}</button>
+      <span class="todo-text">${todo.text}</span>
+      <button class="toggle-btn">${todo.done ? '↩' : '🆗'}</button>
+      <button class="del-btn">🚮</button>
+    `;
 
-    const favBtn = document.createElement('button');
-    favBtn.textContent = todo.favorite ? '⭐' : '☆';
-    favBtn.className = 'fav-btn';
-    favBtn.addEventListener('click', () => toggleFavorite(todo));
-
-    const span = document.createElement('span');
-    span.textContent = todo.text;
-    // Make todo text editable on click
-    span.addEventListener('click', () => {
-      if (span.querySelector('input')) return; // Already editing
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.value = todo.text;
-      input.style.cssText = 'width: 100%; padding: 2px 4px; font: inherit;';
-      
-      const finishEdit = async () => {
-        const newText = input.value.trim();
-        if (newText && newText !== todo.text) {
-          // Save to server
-          await fetchWithLogging(`${API_BASE}/${todo.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-            body: JSON.stringify({ text: newText })
-          });
-        } else {
-          span.textContent = todo.text; // Revert display
-        }
-      };
-      
-      input.addEventListener('blur', finishEdit);
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { input.blur(); }
-        if (e.key === 'Escape') { span.textContent = todo.text; }
-      });
-      
-      span.textContent = '';
-      span.appendChild(input);
-      input.focus();
-      input.select();
-    });
-
-    const toggleBtn = document.createElement('button');
-    toggleBtn.textContent = todo.done ? '↩' : '🆗';
-    toggleBtn.addEventListener('click', () => toggleTodo(todo));
-
-    const delBtn = document.createElement('button');
-    delBtn.textContent = '🚮';
-    delBtn.addEventListener('click', () => deleteTodo(todo));
-
-    li.appendChild(favBtn);
-    li.appendChild(span);
-    li.appendChild(toggleBtn);
-    li.appendChild(delBtn);
     fragment.appendChild(li);
   });
   // Single DOM reflow instead of multiple
@@ -539,6 +494,65 @@ form.addEventListener('submit', e => {
 
 showDoneToggle.addEventListener('change', renderTodos);
 undoBtn.addEventListener('click', undo);
+
+// --- Event Delegation for Todo List ---
+list.addEventListener('click', e => {
+  const target = e.target;
+  const li = target.closest('li.todo-item');
+  if (!li) return;
+
+  const id = Number(li.dataset.id);
+  const todo = allTodos.find(t => t.id === id);
+  if (!todo) return;
+
+  // Handle button clicks
+  if (target.matches('.fav-btn')) {
+    toggleFavorite(todo);
+  } else if (target.matches('.toggle-btn')) {
+    toggleTodo(todo);
+  } else if (target.matches('.del-btn')) {
+    deleteTodo(todo);
+  } else if (target.matches('.todo-text')) {
+    // Handle click on text for editing
+    const span = target;
+    if (span.querySelector('input')) return; // Already editing
+
+    const currentText = todo.text;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentText;
+    input.style.cssText = 'width: 100%; padding: 2px 4px; font: inherit;';
+
+    const finishEdit = async () => {
+      const newText = input.value.trim();
+      if (newText && newText !== currentText) {
+        // Save to server
+        await fetchWithLogging(`${API_BASE}/${todo.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ text: newText })
+        });
+        // The UI will update via WebSocket broadcast
+      } else {
+        // Revert display if no change or empty
+        span.textContent = currentText;
+      }
+    };
+
+    input.addEventListener('blur', finishEdit);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') input.blur();
+      if (e.key === 'Escape') {
+        span.textContent = currentText; // Revert and don't save
+      }
+    });
+
+    span.textContent = '';
+    span.appendChild(input);
+    input.focus();
+    input.select();
+  }
+});
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
