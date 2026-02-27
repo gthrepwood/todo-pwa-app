@@ -81,7 +81,11 @@ const OAUTH_REDIRECT_URI = process.env.OAUTH_REDIRECT_URI || `${BASE_URL}/api/au
 const oauthStateStore = new Map(); // state -> { provider, createdAt }
 const OAUTH_STATE_TTL = 10 * 60 * 1000; // 10 minutes
 
-// Generate OAuth state with CSRF protection
+/**
+ * Generate OAuth state with CSRF protection.
+ * @param {string} provider - The OAuth provider name.
+ * @returns {string} The generated state.
+ */
 function generateOAuthState(provider) {
   const state = crypto.randomBytes(32).toString('hex');
   oauthStateStore.set(state, { provider, createdAt: Date.now() });
@@ -97,7 +101,11 @@ function generateOAuthState(provider) {
   return state;
 }
 
-// Validate OAuth state
+/**
+ * Validate OAuth state.
+ * @param {string} state - The state to validate.
+ * @returns {string|null} The provider name if valid, otherwise null.
+ */
 function validateOAuthState(state) {
   const stateData = oauthStateStore.get(state);
   if (!stateData) return null;
@@ -109,7 +117,10 @@ function validateOAuthState(state) {
   return stateData.provider;
 }
 
-// Generate OAuth authorization URLs
+/**
+ * Get Google OAuth authorization URL.
+ * @returns {string} The Google OAuth URL.
+ */
 function getGoogleAuthUrl() {
   const scopes = ['https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/userinfo.profile'];
   const state = generateOAuthState('google');
@@ -122,6 +133,10 @@ function getGoogleAuthUrl() {
     `&state=${state}`;
 }
 
+/**
+ * Get Microsoft OAuth authorization URL.
+ * @returns {string} The Microsoft OAuth URL.
+ */
 function getMicrosoftAuthUrl() {
   const scopes = ['User.Read'];
   const state = generateOAuthState('microsoft');
@@ -133,7 +148,11 @@ function getMicrosoftAuthUrl() {
     `&state=${state}`;
 }
 
-// Exchange authorization code for tokens
+/**
+ * Exchange Google authorization code for tokens.
+ * @param {string} code - The authorization code.
+ * @returns {Promise<object>} The tokens.
+ */
 async function exchangeGoogleCode(code) {
   const response = await axios.post('https://oauth2.googleapis.com/token', {
     client_id: GOOGLE_CLIENT_ID,
@@ -145,6 +164,11 @@ async function exchangeGoogleCode(code) {
   return response.data;
 }
 
+/**
+ * Exchange Microsoft authorization code for tokens.
+ * @param {string} code - The authorization code.
+ * @returns {Promise<object>} The tokens.
+ */
 async function exchangeMicrosoftCode(code) {
   const response = await axios.post(`https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/token`, {
     client_id: MICROSOFT_CLIENT_ID,
@@ -157,7 +181,11 @@ async function exchangeMicrosoftCode(code) {
   return response.data;
 }
 
-// Get user info from OAuth provider
+/**
+ * Get user info from Google.
+ * @param {string} accessToken - The access token.
+ * @returns {Promise<object>} The user info.
+ */
 async function getGoogleUserInfo(accessToken) {
   const response = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
     headers: { Authorization: `Bearer ${accessToken}` }
@@ -165,6 +193,11 @@ async function getGoogleUserInfo(accessToken) {
   return response.data;
 }
 
+/**
+ * Get user info from Microsoft.
+ * @param {string} accessToken - The access token.
+ * @returns {Promise<object>} The user info.
+ */
 async function getMicrosoftUserInfo(accessToken) {
   const response = await axios.get('https://graph.microsoft.com/v1.0/me', {
     headers: { Authorization: `Bearer ${accessToken}` }
@@ -172,7 +205,12 @@ async function getMicrosoftUserInfo(accessToken) {
   return response.data;
 }
 
-// Generate unique ID for OAuth user
+/**
+ * Generate a unique ID for an OAuth user.
+ * @param {string} provider - The OAuth provider.
+ * @param {string} providerId - The user's ID from the provider.
+ * @returns {string} The unique user ID.
+ */
 function getOAuthUserId(provider, providerId) {
   return `${provider}:${providerId}`;
 }
@@ -189,6 +227,10 @@ if (!fs.existsSync(DATA_DIR)) {
 // Simple in-memory session store with file persistence
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 
+/**
+ * Load sessions from file.
+ * @returns {Map<string, object>} The sessions.
+ */
 function loadSessions() {
   try {
     if (fs.existsSync(SESSIONS_FILE)) {
@@ -201,6 +243,9 @@ function loadSessions() {
   return new Map();
 }
 
+/**
+ * Save sessions to file.
+ */
 function saveSessions() {
   try {
     const sessionsArray = Array.from(sessions.entries());
@@ -228,6 +273,10 @@ process.on('SIGINT', () => {
 
 // --- Password management functions ---
 
+/**
+ * Load passwords from file.
+ * @returns {object} The passwords.
+ */
 function loadPasswords() {
   try {
     if (fs.existsSync(PASSWORDS_FILE)) {
@@ -240,7 +289,9 @@ function loadPasswords() {
   return {};
 }
 
-// Clean up orphaned entries on startup
+/**
+ * Clean up orphaned data on startup.
+ */
 function cleanupData() {
   console.log('\n🧹 Running data cleanup...');
   
@@ -320,6 +371,10 @@ function cleanupData() {
   console.log('');
 }
 
+/**
+ * Save passwords to file.
+ * @param {object} passwords - The passwords to save.
+ */
 function savePasswords(passwords) {
   try {
     fs.writeFileSync(PASSWORDS_FILE, JSON.stringify(passwords, null, 2), 'utf8');
@@ -331,19 +386,39 @@ function savePasswords(passwords) {
 // Password hashing with bcrypt
 const BCRYPT_ROUNDS = 12;
 
+/**
+ * Hash a password with bcrypt.
+ * @param {string} password - The password to hash.
+ * @returns {Promise<string>} The hashed password.
+ */
 async function hashPassword(password) {
   return await bcrypt.hash(password, BCRYPT_ROUNDS);
 }
 
+/**
+ * Verify a password against a bcrypt hash.
+ * @param {string} password - The password to verify.
+ * @param {string} hash - The hash to verify against.
+ * @returns {Promise<boolean>} Whether the password is valid.
+ */
 async function verifyPassword(password, hash) {
   return await bcrypt.compare(password, hash);
 }
 
-// Legacy hash function for backward compatibility (used for file paths)
+/**
+ * Legacy hash function for backward compatibility (used for file paths).
+ * @param {string} password - The password to hash.
+ * @returns {string} The hashed password.
+ */
 function getDataHash(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
 
+/**
+ * Check if a password is new.
+ * @param {string} password - The password to check.
+ * @returns {boolean} Whether the password is new.
+ */
 function isNewPassword(password) {
   const passwords = loadPasswords();
   // Check if any stored hash matches
@@ -356,6 +431,11 @@ function isNewPassword(password) {
   return Object.keys(passwords).length === 0;
 }
 
+/**
+ * Register a new password.
+ * @param {string} password - The password to register.
+ * @returns {Promise<string>} The data hash of the password.
+ */
 async function registerPassword(password) {
   const passwords = loadPasswords();
   const dataHash = getDataHash(password);
@@ -382,6 +462,11 @@ async function registerPassword(password) {
   return dataHash;
 }
 
+/**
+ * Verify a password and register it if new.
+ * @param {string} password - The password to verify.
+ * @returns {Promise<{hash: string, isNew: boolean}>} The data hash and whether the password was new.
+ */
 async function verifyAndRegisterPassword(password) {
   const passwords = loadPasswords();
   const dataHash = getDataHash(password);
@@ -414,6 +499,12 @@ async function verifyAndRegisterPassword(password) {
   return { hash: dataHash, isNew: true };
 }
 
+/**
+ * Register an OAuth user.
+ * @param {string} passwordHash - The data hash of the user.
+ * @param {string} provider - The OAuth provider.
+ * @param {object} userInfo - The user's info from the provider.
+ */
 function registerOAuthUser(passwordHash, provider, userInfo) {
   const passwords = loadPasswords();
   
@@ -436,6 +527,11 @@ function registerOAuthUser(passwordHash, provider, userInfo) {
 
 // --- Todo database path function ---
 
+/**
+ * Get the file path for a user's todos.
+ * @param {string} passwordHash - The user's data hash.
+ * @returns {string} The file path.
+ */
 function getTodoFilePath(passwordHash) {
   return path.join(DATA_DIR, `todos_${passwordHash}.json`);
 }
@@ -448,6 +544,11 @@ const DB_WRITE_DEBOUNCE_MS = parseInt(process.env.DB_WRITE_DEBOUNCE_MS) || 100;
 const writeCache = new Map();
 const pendingWrites = new Map(); // passwordHash -> setTimeout ID
 
+/**
+ * Load todos for a user.
+ * @param {string} passwordHash - The user's data hash.
+ * @returns {{todos: Array, sortMode: string}} The user's todos and sort mode.
+ */
 function loadTodos(passwordHash) {
   // First check cache for latest data
   const cached = writeCache.get(passwordHash);
@@ -472,7 +573,12 @@ function loadTodos(passwordHash) {
   return { todos: [], sortMode: 'default' };
 }
 
-// Async write with debouncing - batches multiple writes within debounce period
+/**
+ * Asynchronously save todos for a user with debouncing.
+ * @param {string} passwordHash - The user's data hash.
+ * @param {Array} todos - The user's todos.
+ * @param {string} [sortMode='default'] - The user's sort mode.
+ */
 function saveTodosAsync(passwordHash, todos, sortMode = 'default') {
   // Update cache immediately for reads
   const data = { todos, sortMode };
@@ -503,7 +609,12 @@ function saveTodosAsync(passwordHash, todos, sortMode = 'default') {
   pendingWrites.set(passwordHash, timeoutId);
 }
 
-// Synchronous save (for shutdown/cleanup)
+/**
+ * Synchronously save todos for a user.
+ * @param {Array} todos - The user's todos.
+ * @param {string} passwordHash - The user's data hash.
+ * @param {string} [sortMode='default'] - The user's sort mode.
+ */
 function saveTodosSync(todos, passwordHash, sortMode = 'default') {
   const todoFile = getTodoFilePath(passwordHash);
   try {
@@ -515,13 +626,23 @@ function saveTodosSync(todos, passwordHash, sortMode = 'default') {
   }
 }
 
-// Backward compatibility - use async version
+/**
+ * Save todos for a user (backward compatibility).
+ * @param {Array} todos - The user's todos.
+ * @param {string} passwordHash - The user's data hash.
+ * @param {string} [sortMode='default'] - The user's sort mode.
+ */
 function saveTodos(todos, passwordHash, sortMode = 'default') {
   return saveTodosAsync(passwordHash, todos, sortMode);
 }
 
 // --- Helper to get todos for a session ---
 
+/**
+ * Get todos for a session.
+ * @param {object} session - The session object.
+ * @returns {{todos: Array, sortMode: string}} The user's todos and sort mode.
+ */
 function getSessionTodos(session) {
   if (!session || !session.passwordHash) {
     return { todos: [], sortMode: 'default' };
@@ -529,6 +650,12 @@ function getSessionTodos(session) {
   return loadTodos(session.passwordHash);
 }
 
+/**
+ * Save todos for a session.
+ * @param {Array} todos - The user's todos.
+ * @param {object} session - The session object.
+ * @param {string} sortMode - The user's sort mode.
+ */
 function saveSessionTodos(todos, session, sortMode) {
   if (!session || !session.passwordHash) {
     return;
@@ -538,6 +665,11 @@ function saveSessionTodos(todos, session, sortMode) {
 
 // --- Broadcast function for WebSocket ---
 
+/**
+ * Broadcast data to all WebSocket clients.
+ * @param {object} data - The data to broadcast.
+ * @param {string|null} [passwordHash=null] - The password hash to broadcast to (not used).
+ */
 function broadcast(data, passwordHash = null) {
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
@@ -570,6 +702,12 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // --- Authentication Middleware ---
 const SESSION_MAX_AGE = (process.env.SESSION_MAX_AGE_HOURS || 60) * 60 * 1000; // Default: 60 min
 
+/**
+ * Middleware to require authentication.
+ * @param {import('express').Request} req - The request object.
+ * @param {import('express').Response} res - The response object.
+ * @param {import('express').NextFunction} next - The next middleware function.
+ */
 function requireAuth(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token || !sessions.has(token)) {
@@ -591,6 +729,26 @@ function requireAuth(req, res, next) {
 }
 
 // --- Auth Endpoints ---
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: Login with a password
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *       401:
+ *         description: Authentication failed
+ */
 app.post('/api/auth/login', async (req, res) => {
   const { password } = req.body;
   
@@ -628,6 +786,15 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: Logout
+ *     responses:
+ *       200:
+ *         description: Logged out
+ */
 app.post('/api/auth/logout', (req, res) => {
   // Try to get token from cookie first, then from header
   const token = req.cookies?.authToken || req.headers.authorization?.split(' ')[1];
@@ -640,6 +807,15 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ message: 'Logged out' });
 });
 
+/**
+ * @swagger
+ * /api/auth/check:
+ *   get:
+ *     summary: Check authentication status
+ *     responses:
+ *       200:
+ *         description: Authentication status
+ */
 app.get('/api/auth/check', (req, res) => {
   const token = req.cookies?.authToken || req.headers.authorization?.split(' ')[1];
   if (token && sessions.has(token)) {
@@ -652,7 +828,15 @@ app.get('/api/auth/check', (req, res) => {
 
 // --- OAuth Endpoints ---
 
-// Get OAuth providers info
+/**
+ * @swagger
+ * /api/auth/oauth/providers:
+ *   get:
+ *     summary: Get available OAuth providers
+ *     responses:
+ *       200:
+ *         description: OAuth providers
+ */
 app.get('/api/auth/oauth/providers', (req, res) => {
   res.json({
     google: !!GOOGLE_CLIENT_ID,
@@ -660,7 +844,15 @@ app.get('/api/auth/oauth/providers', (req, res) => {
   });
 });
 
-// Initiate Google OAuth
+/**
+ * @swagger
+ * /api/auth/oauth/google:
+ *   get:
+ *     summary: Initiate Google OAuth
+ *     responses:
+ *       200:
+ *         description: Google OAuth URL
+ */
 app.get('/api/auth/oauth/google', (req, res) => {
   if (!GOOGLE_CLIENT_ID) {
     return res.status(501).json({ error: 'Google OAuth not configured' });
@@ -668,7 +860,15 @@ app.get('/api/auth/oauth/google', (req, res) => {
   res.json({ authUrl: getGoogleAuthUrl() });
 });
 
-// Initiate Microsoft OAuth
+/**
+ * @swagger
+ * /api/auth/oauth/microsoft:
+ *   get:
+ *     summary: Initiate Microsoft OAuth
+ *     responses:
+ *       200:
+ *         description: Microsoft OAuth URL
+ */
 app.get('/api/auth/oauth/microsoft', (req, res) => {
   if (!MICROSOFT_CLIENT_ID) {
     return res.status(501).json({ error: 'Microsoft OAuth not configured' });
@@ -676,7 +876,15 @@ app.get('/api/auth/oauth/microsoft', (req, res) => {
   res.json({ authUrl: getMicrosoftAuthUrl() });
 });
 
-// OAuth callback handler
+/**
+ * @swagger
+ * /api/auth/oauth/callback:
+ *   get:
+ *     summary: OAuth callback
+ *     responses:
+ *       302:
+ *         description: Redirect to app
+ */
 app.get('/api/auth/oauth/callback', async (req, res) => {
   const { code, state } = req.query;
   

@@ -36,10 +36,17 @@ let undoTimeout = null;
 input.focus();
 
 // --- Authentication ---
+/**
+ * Returns authentication headers if a token is available.
+ * @returns {object} - Headers object for API requests.
+ */
 function getAuthHeaders() {
   return authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
 }
 
+/**
+ * Shows the login screen and hides the main application content.
+ */
 function showLoginScreen() {
   document.getElementById('todo-form').classList.add('hidden');
   document.getElementById('todo-list').classList.add('hidden');
@@ -56,6 +63,9 @@ function showLoginScreen() {
   if (logoutLink) logoutLink.style.display = 'none';
 }
 
+/**
+ * Shows the main application screen and hides the login screen.
+ */
 function showMainScreen() {
   document.getElementById('todo-form').classList.remove('hidden');
   // Don't show todo-list yet - wait for sort mode to be loaded first
@@ -67,11 +77,20 @@ function showMainScreen() {
   if (logoutLink) logoutLink.style.display = '';
 }
 
+/**
+ * Shows the todo list.
+ */
 function showTodoList() {
   // Show the todo list after sort mode is loaded
   document.getElementById('todo-list').classList.remove('hidden');
 }
 
+/**
+ * Wrapper for fetch to log API requests and responses.
+ * @param {string} url - The URL to fetch.
+ * @param {object} options - Fetch options.
+ * @returns {Promise<Response>} - The fetch response.
+ */
 async function fetchWithLogging(url, options) {
   const method = options?.method || 'GET';
   console.log(`[API] ==> ${method} ${url}`);
@@ -88,6 +107,10 @@ async function fetchWithLogging(url, options) {
   }
 }
 
+/**
+ * Updates the local todos array and caches it to localStorage.
+ * @param {Array} newTodos - The new array of todos.
+ */
 function updateAndCacheTodos(newTodos) {
   console.log(`[CACHE] Updating with ${newTodos.length} todos.`);
   allTodos = newTodos;
@@ -99,6 +122,11 @@ function updateAndCacheTodos(newTodos) {
   renderTodos();
 }
 
+/**
+ * Logs in the user with a password.
+ * @param {string} password - The user's password.
+ * @returns {Promise<{success: boolean, error?: string}>} - Whether the login was successful.
+ */
 async function login(password) {
   try {
     const response = await fetchWithLogging(`${AUTH_API}/login`, {
@@ -123,6 +151,9 @@ async function login(password) {
   }
 }
 
+/**
+ * Logs out the user.
+ */
 async function logout() {
   try {
     await fetchWithLogging(`${AUTH_API}/logout`, {
@@ -155,6 +186,9 @@ ws.onerror = (error) => {
 };
 
 // --- Load initial data ---
+/**
+ * Loads todos from the server.
+ */
 async function loadTodos() {
   try {
     const response = await fetchWithLogging(API_BASE, {
@@ -236,6 +270,9 @@ if (urlParams.has('oauth_complete')) {
   showLoginScreen();
 }
 
+/**
+ * Renders the todo list to the DOM.
+ */
 function renderTodos() {
   console.log(`[RENDER] Starting render with ${allTodos.length} total todos in memory.`);
   const showDone = showDoneToggle.checked;
@@ -324,6 +361,9 @@ function renderTodos() {
   list.appendChild(fragment);
 }
 
+/**
+ * Shows the undo button for a short period.
+ */
 function showUndoButton() {
   undoBtn.classList.remove('hidden');
   clearTimeout(undoTimeout);
@@ -332,12 +372,19 @@ function showUndoButton() {
   }, 10000);
 }
 
+/**
+ * Hides the undo button and clears the undo stack.
+ */
 function hideUndoButton() {
   undoBtn.classList.add('hidden');
   undoStack = [];
   clearTimeout(undoTimeout);
 }
 
+/**
+ * Adds a new todo item.
+ * @param {string} text - The text of the todo item.
+ */
 async function addTodo(text) {
   hideUndoButton();
   
@@ -365,6 +412,10 @@ async function addTodo(text) {
   }
 }
 
+/**
+ * Toggles the 'done' state of a todo item.
+ * @param {object} todo - The todo item to toggle.
+ */
 async function toggleTodo(todo) {
   undoStack.push(JSON.parse(JSON.stringify(allTodos)));
   const response = await fetchWithLogging(`${API_BASE}/${todo.id}`, {
@@ -382,6 +433,10 @@ async function toggleTodo(todo) {
   }
 }
 
+/**
+ * Toggles the 'favorite' state of a todo item.
+ * @param {object} todo - The todo item to toggle.
+ */
 async function toggleFavorite(todo) {
   undoStack.push(JSON.parse(JSON.stringify(allTodos)));
   const response = await fetchWithLogging(`${API_BASE}/${todo.id}`, {
@@ -399,6 +454,10 @@ async function toggleFavorite(todo) {
   }
 }
 
+/**
+ * Deletes a todo item.
+ * @param {object} todo - The todo item to delete.
+ */
 async function deleteTodo(todo) {
   console.log('Deleting todo:', todo);
   undoStack.push(JSON.parse(JSON.stringify(allTodos)));
@@ -414,6 +473,9 @@ async function deleteTodo(todo) {
   }
 }
 
+/**
+ * Clears all 'done' todo items.
+ */
 async function clearDoneTodos() {
   const doneTodos = allTodos.filter(t => t.done);
   if (doneTodos.length === 0) return;
@@ -436,6 +498,9 @@ async function clearDoneTodos() {
   }
 }
 
+/**
+ * Undoes the last action.
+ */
 async function undo() {
   if (undoStack.length === 0) {
     console.log('No actions to undo');
@@ -502,6 +567,9 @@ loginForm.addEventListener('submit', async e => {
 // OAuth Login
 let oauthProviders = { google: false, microsoft: false };
 
+/**
+ * Loads the available OAuth providers from the server.
+ */
 async function loadOAuthProviders() {
   try {
     const response = await fetch(`${AUTH_API}/oauth/providers`);
@@ -525,6 +593,10 @@ async function loadOAuthProviders() {
   }
 }
 
+/**
+ * Initiates the OAuth login process for a given provider.
+ * @param {string} provider - The OAuth provider (e.g., 'google', 'microsoft').
+ */
 async function oauthLogin(provider) {
   try {
     const response = await fetch(`${AUTH_API}/oauth/${provider}`);
@@ -543,7 +615,9 @@ async function oauthLogin(provider) {
   }
 }
 
-// Handle OAuth callback (legacy URL-based - kept for compatibility)
+/**
+ * Handles the OAuth callback.
+ */
 function handleOAuthCallback() {
   const urlParams = new URLSearchParams(window.location.search);
   const oauthToken = urlParams.get('oauth_token');
@@ -663,7 +737,9 @@ mainMenu.addEventListener('click', (e) => {
   }
 });
 
-// Save DB - download todos as JSON
+/**
+ * Saves the current todos to a JSON file.
+ */
 function saveDb() {
   const data = JSON.stringify(allTodos, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
@@ -675,7 +751,9 @@ function saveDb() {
   URL.revokeObjectURL(url);
 }
 
-// Load DB - upload todos from JSON file
+/**
+ * Loads todos from a JSON file.
+ */
 function loadDb() {
   const input = document.createElement('input');
   input.type = 'file';
