@@ -12,7 +12,15 @@ const undoBtn = document.getElementById('undo-btn');
 
 let allTodos = [];
 let currentSortMode = 'default'; // 'default' = by added time, 'alpha' = alphabetically
+let deleteEnabled = true; // Whether delete is enabled (from server)
 let appVersion = '1.0.0'; // Default, will be updated from server
+
+// Load "show completed" state from localStorage
+const savedShowCompleted = localStorage.getItem('showCompleted');
+if (savedShowCompleted !== null) {
+  showDoneToggle.checked = savedShowCompleted === 'true';
+}
+
 try {
   const cachedTodos = localStorage.getItem('cachedTodos');
   if (cachedTodos) {
@@ -165,6 +173,7 @@ async function logout() {
   console.log('[CACHE] Clearing all cached data on logout.');
   localStorage.removeItem('authToken');
   localStorage.removeItem('cachedTodos');
+  localStorage.removeItem('showCompleted');
   showLoginScreen();
 }
 
@@ -202,18 +211,51 @@ async function loadTodos() {
       showLoginScreen();
       return;
     }
-    // Get sort mode from response header
+    // Get sort mode and delete enabled from response headers
     const sortMode = response.headers.get('X-Sort-Mode') || 'default';
     currentSortMode = sortMode;
     
+    const deleteEnabledHeader = response.headers.get('X-Delete-Enabled');
+    deleteEnabled = deleteEnabledHeader !== 'false';
+    
     const newTodos = await response.json();
     updateAndCacheTodos(newTodos);
+    
+    // Update menu labels after loading settings
+    updateMenuLabels();
     
     // Show todo list only after sort mode is loaded
     showTodoList();
   } catch (error) {
     console.error('Error loading todos:', error);
     showLoginScreen();
+  }
+}
+
+/**
+ * Updates menu labels based on current settings.
+ */
+function updateMenuLabels() {
+  // Update "show completed" label
+  const toggleDoneLink = document.querySelector('[data-menu="toggle-done"]');
+  if (toggleDoneLink) {
+    toggleDoneLink.textContent = showDoneToggle.checked ? '🙈 Hide completed' : '👁️ Show completed';
+  }
+  
+  // Update sort mode labels
+  const sortDefaultLink = document.querySelector('[data-menu="sort-default"]');
+  const sortAlphaLink = document.querySelector('[data-menu="sort-alpha"]');
+  if (sortDefaultLink) {
+    sortDefaultLink.textContent = currentSortMode === 'default' ? '✓ Sort by added' : '📋 Sort by added';
+  }
+  if (sortAlphaLink) {
+    sortAlphaLink.textContent = currentSortMode === 'alpha' ? '✓ A-Z Sort alphabetically' : 'A-Z Sort alphabetically';
+  }
+  
+  // Update delete enabled label
+  const toggleDeleteLink = document.querySelector('[data-menu="toggle-delete"]');
+  if (toggleDeleteLink) {
+    toggleDeleteLink.textContent = deleteEnabled ? '✓ Delete enabled' : '🙈 Delete disabled';
   }
 }
 
@@ -279,9 +321,13 @@ function renderTodos() {
   let todosToRender = showDone ? allTodos : allTodos.filter(t => !t.done);
 
   // Sort based on current sort mode
+  // Always keep completed tasks after non-completed tasks
   todosToRender = [...todosToRender].sort((a, b) => {
-    // Always keep favorites first
+    // First, keep favorites first
     if (a.favorite !== b.favorite) return b.favorite ? 1 : -1;
+    
+    // Second, keep non-completed before completed
+    if (a.done !== b.done) return a.done ? 1 : -1;
     
     // Then apply the selected sort mode
     if (currentSortMode === 'alpha') {
@@ -302,12 +348,15 @@ function renderTodos() {
     li.className = 'todo-item' + (todo.done ? ' done' : '');
     li.dataset.id = todo.id;
     
+    // Hide delete button if delete is disabled
+    const deleteButton = deleteEnabled ? '<button class="del-btn">🚮</button>' : '';
+    
     // Use innerHTML for simpler and faster element creation
     li.innerHTML = `
       <button class="fav-btn">${todo.favorite ? '⭐' : '☆'}</button>
       <span class="todo-text">${todo.text}</span>
       <button class="toggle-btn">${todo.done ? '↩' : '🆗'}</button>
-      <button class="del-btn">🚮</button>
+      ${deleteButton}
     `;
 
     fragment.appendChild(li);
@@ -384,6 +433,9 @@ async function toggleTodo(todo) {
   if (response.status === 401) {
     showLoginScreen();
   } else {
+    // Update local state immediately for responsive UI
+    todo.done = !todo.done;
+    renderTodos();
     showUndoButton();
   }
 }
@@ -405,6 +457,9 @@ async function toggleFavorite(todo) {
   if (response.status === 401) {
     showLoginScreen();
   } else {
+    // Update local state immediately for responsive UI
+    todo.favorite = !todo.favorite;
+    renderTodos();
     showUndoButton();
   }
 }
@@ -438,17 +493,18 @@ async function clearDoneTodos() {
   console.log('Clearing done todos:', doneTodos.length);
   undoStack.push(JSON.parse(JSON.stringify(allTodos)));
 
-  // Delete all done todos
-  const deletePromises = doneTodos.map(todo =>
-    fetchWithLogging(`${API_BASE}/${todo.id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    })
-  );
-  const responses = await Promise.all(deletePromises);
-  if (responses.some(r => r.status === 401)) {
+  // Use the bulk clear endpoint (bypasses deleteEnabled check)
+  const response = await fetchWithLogging(`${API_BASE}/clear-completed`, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+  
+  if (response.status === 401) {
     showLoginScreen();
   } else {
+    // Update local state immediately for responsive UI
+    allTodos = allTodos.filter(t => !t.done);
+    renderTodos();
     showUndoButton();
   }
 }
@@ -477,6 +533,9 @@ async function undo() {
       throw new Error('Undo failed: ' + response.status);
     }
     console.log('Undo successful - all items restored');
+    // Update local state immediately for responsive UI
+    allTodos = originalState;
+    renderTodos();
   } catch (error) {
     console.error('Undo error:', error);
   }
@@ -492,7 +551,11 @@ form.addEventListener('submit', e => {
   input.value = '';
 });
 
-showDoneToggle.addEventListener('change', renderTodos);
+showDoneToggle.addEventListener('change', () => {
+  // Save "show completed" state to localStorage
+  localStorage.setItem('showCompleted', showDoneToggle.checked);
+  renderTodos();
+});
 undoBtn.addEventListener('click', undo);
 
 // --- Event Delegation for Todo List ---
@@ -707,6 +770,8 @@ mainMenu.addEventListener('click', (e) => {
       break;
     case 'toggle-done':
       showDoneToggle.checked = !showDoneToggle.checked;
+      // Save "show completed" state to localStorage
+      localStorage.setItem('showCompleted', showDoneToggle.checked);
       // Update menu label
       link.textContent = showDoneToggle.checked ? '🙈 Hide completed' : '👁️ Show completed';
       renderTodos();
@@ -735,6 +800,18 @@ mainMenu.addEventListener('click', (e) => {
       break;
     case 'clear-done':
       clearDoneTodos();
+      break;
+    case 'toggle-delete':
+      deleteEnabled = !deleteEnabled;
+      // Save to server
+      fetchWithLogging('/api/delete-enabled', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ deleteEnabled })
+      });
+      // Update menu label
+      link.textContent = deleteEnabled ? '✓ Delete enabled' : '🙈 Delete disabled';
+      renderTodos();
       break;
     case 'save-db':
       saveDb();

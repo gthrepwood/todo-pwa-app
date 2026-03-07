@@ -12,7 +12,8 @@
 - ⭐ **Favorites** — mark tasks with ⭐, they jump to the top
 - 🔄 **Real-time sync** across all connected clients via WebSocket
 - ↩️ **Undo** — restore accidentally deleted tasks (10-second window)
-- 👁️ **Show/hide completed** tasks from the menu
+- 👁️ **Show/hide completed** tasks from the menu (persists in localStorage)
+- 🚮 **Delete toggle** — enable/disable delete button from menu
 - 💾 **Save & Load DB** — export/import your todos as JSON
 - 🔐 **Password-protected** — each password has its own todo database
 - 📱 **PWA** — installable on mobile, works offline (service worker)
@@ -172,30 +173,39 @@ BASE_URL=https://your-domain.com npm start
 
 ### Todos
 
-| Method   | Endpoint           | Auth | Description                    |
-| -------- | ------------------ | ---- | ------------------------------ |
-| `GET`    | `/api/todos`       | ✅   | Get all todos                  |
-| `POST`   | `/api/todos`       | ✅   | Create a new todo              |
-| `PUT`    | `/api/todos`       | ✅   | Restore all todos (undo)       |
-| `PUT`    | `/api/todos/:id`   | ✅   | Update a specific todo         |
-| `DELETE` | `/api/todos/:id`   | ✅   | Delete a specific todo         |
+| Method   | Endpoint                  | Auth | Description                         |
+| -------- | ------------------------ | ---- | ----------------------------------- |
+| `GET`    | `/api/todos`             | ✅   | Get all todos                       |
+| `POST`   | `/api/todos`             | ✅   | Create a new todo                   |
+| `PUT`    | `/api/todos`             | ✅   | Restore all todos (undo)            |
+| `PUT`    | `/api/todos/:id`        | ✅   | Update a specific todo              |
+| `DELETE` | `/api/todos/:id`        | ✅   | Delete a specific todo              |
+| `DELETE` | `/api/todos/clear-completed` | ✅   | Clear all completed todos           |
 
 ### Other
 
-| Method   | Endpoint           | Auth | Description                    |
-| -------- | ------------------ | ---- | ------------------------------ |
-| `GET`    | `/api/version`      | ❌   | Get app version                |
-| `PUT`    | `/api/sort`        | ✅   | Update sort mode (default/alpha) |
-| `POST`   | `/api/archive`     | ✅   | Archive completed todos        |
+| Method   | Endpoint              | Auth | Description                         |
+| -------- | --------------------- | ---- | ----------------------------------- |
+| `GET`    | `/api/version`        | ❌   | Get app version                    |
+| `GET`    | `/api/settings`       | ✅   | Get current settings                |
+| `PUT`    | `/api/sort`          | ✅   | Update sort mode (default/alpha)   |
+| `PUT`    | `/api/delete-enabled` | ✅   | Toggle delete button on/off        |
+| `POST`   | `/api/archive`       | ✅   | Archive completed todos            |
 
 ---
 
 ## 🧪 Testing
 
-Run the undo functionality test:
+Run all tests:
 
 ```bash
-node test-undo.js
+npm test
+```
+
+Run specific test:
+
+```bash
+node tests/test-delete-enabled.js
 ```
 
 This tests Unicode support across multiple scripts: Chinese, Urdu, Japanese, Hindi, Hebrew, Arabic, and more.

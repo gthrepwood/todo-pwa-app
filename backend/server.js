@@ -218,11 +218,49 @@ function getOAuthUserId(provider, providerId) {
 // Data directory
 const DATA_DIR = path.join(__dirname, 'data');
 const PASSWORDS_FILE = path.join(DATA_DIR, 'passwords.json');
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
+
+// --- Default app settings ---
+const DEFAULT_SETTINGS = {
+  deleteEnabled: true,
+  sortMode: 'default'
+};
+
+/**
+ * Load app settings from file.
+ * @returns {object} The settings object.
+ */
+function loadSettings() {
+  try {
+    if (fs.existsSync(SETTINGS_FILE)) {
+      const raw = fs.readFileSync(SETTINGS_FILE, 'utf8');
+      return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    }
+  } catch (err) {
+    console.error('Error reading settings file:', err);
+  }
+  return { ...DEFAULT_SETTINGS };
+}
+
+/**
+ * Save app settings to file.
+ * @param {object} settings - The settings to save.
+ */
+function saveSettings(settings) {
+  try {
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Error writing settings file:', err);
+  }
+}
+
+// Load app settings at startup
+const appSettings = loadSettings();
 
 // Simple in-memory session store with file persistence
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
@@ -264,7 +302,7 @@ process.on('SIGINT', () => {
     clearTimeout(timeoutId);
     const cached = writeCache.get(passwordHash);
     if (cached) {
-      saveTodosSync(cached.todos, passwordHash, cached.sortMode);
+      saveTodosSync(cached.todos, passwordHash, cached.sortMode, cached.deleteEnabled);
     }
   });
   saveSessions();
@@ -563,14 +601,18 @@ function loadTodos(passwordHash) {
       const data = JSON.parse(raw);
       // Support both old format (array) and new format (object)
       if (Array.isArray(data)) {
-        return { todos: data, sortMode: 'default' };
+        return { todos: data, sortMode: 'default', deleteEnabled: true };
+      }
+      // Ensure deleteEnabled exists (default to true for backward compatibility)
+      if (data.deleteEnabled === undefined) {
+        data.deleteEnabled = true;
       }
       return data;
     }
   } catch (err) {
     console.error('Error reading todos file:', err);
   }
-  return { todos: [], sortMode: 'default' };
+  return { todos: [], sortMode: 'default', deleteEnabled: true };
 }
 
 /**
@@ -578,10 +620,11 @@ function loadTodos(passwordHash) {
  * @param {string} passwordHash - The user's data hash.
  * @param {Array} todos - The user's todos.
  * @param {string} [sortMode='default'] - The user's sort mode.
+ * @param {boolean} [deleteEnabled=true] - Whether delete is enabled.
  */
-function saveTodosAsync(passwordHash, todos, sortMode = 'default') {
+function saveTodosAsync(passwordHash, todos, sortMode = 'default', deleteEnabled = true) {
   // Update cache immediately for reads
-  const data = { todos, sortMode };
+  const data = { todos, sortMode, deleteEnabled };
   writeCache.set(passwordHash, data);
   
   // Clear existing pending write
@@ -593,7 +636,11 @@ function saveTodosAsync(passwordHash, todos, sortMode = 'default') {
   const timeoutId = setTimeout(() => {
     const todoFile = getTodoFilePath(passwordHash);
     const cached = writeCache.get(passwordHash);
-    const dataToWrite = JSON.stringify({ todos: cached?.todos || todos, sortMode: cached?.sortMode || sortMode }, null, 2);
+    const dataToWrite = JSON.stringify({ 
+      todos: cached?.todos || todos, 
+      sortMode: cached?.sortMode || sortMode,
+      deleteEnabled: cached?.deleteEnabled ?? deleteEnabled
+    }, null, 2);
     
     fs.writeFile(todoFile, dataToWrite, 'utf8', (err) => {
       if (err) {
@@ -614,11 +661,12 @@ function saveTodosAsync(passwordHash, todos, sortMode = 'default') {
  * @param {Array} todos - The user's todos.
  * @param {string} passwordHash - The user's data hash.
  * @param {string} [sortMode='default'] - The user's sort mode.
+ * @param {boolean} [deleteEnabled=true] - Whether delete is enabled.
  */
-function saveTodosSync(todos, passwordHash, sortMode = 'default') {
+function saveTodosSync(todos, passwordHash, sortMode = 'default', deleteEnabled = true) {
   const todoFile = getTodoFilePath(passwordHash);
   try {
-    fs.writeFileSync(todoFile, JSON.stringify({ todos, sortMode }, null, 2), 'utf8');
+    fs.writeFileSync(todoFile, JSON.stringify({ todos, sortMode, deleteEnabled }, null, 2), 'utf8');
     // Clear from cache after sync write
     writeCache.delete(passwordHash);
   } catch (err) {
@@ -631,9 +679,10 @@ function saveTodosSync(todos, passwordHash, sortMode = 'default') {
  * @param {Array} todos - The user's todos.
  * @param {string} passwordHash - The user's data hash.
  * @param {string} [sortMode='default'] - The user's sort mode.
+ * @param {boolean} [deleteEnabled=true] - Whether delete is enabled.
  */
-function saveTodos(todos, passwordHash, sortMode = 'default') {
-  return saveTodosAsync(passwordHash, todos, sortMode);
+function saveTodos(todos, passwordHash, sortMode = 'default', deleteEnabled = true) {
+  return saveTodosAsync(passwordHash, todos, sortMode, deleteEnabled);
 }
 
 // --- Helper to get todos for a session ---
@@ -645,7 +694,7 @@ function saveTodos(todos, passwordHash, sortMode = 'default') {
  */
 function getSessionTodos(session) {
   if (!session || !session.passwordHash) {
-    return { todos: [], sortMode: 'default' };
+    return { todos: [], sortMode: 'default', deleteEnabled: true };
   }
   return loadTodos(session.passwordHash);
 }
@@ -655,12 +704,13 @@ function getSessionTodos(session) {
  * @param {Array} todos - The user's todos.
  * @param {object} session - The session object.
  * @param {string} sortMode - The user's sort mode.
+ * @param {boolean} deleteEnabled - Whether delete is enabled.
  */
-function saveSessionTodos(todos, session, sortMode) {
+function saveSessionTodos(todos, session, sortMode, deleteEnabled) {
   if (!session || !session.passwordHash) {
     return;
   }
-  saveTodos(todos, session.passwordHash, sortMode);
+  saveTodos(todos, session.passwordHash, sortMode, deleteEnabled);
 }
 
 // --- Broadcast function for WebSocket ---
@@ -966,9 +1016,10 @@ app.get('/api/version', (req, res) => {
 
 app.get('/api/todos', requireAuth, (req, res) => {
   const data = getSessionTodos(req.session);
-  // Set headers to prevent caching and include sort mode
+  // Set headers to prevent caching and include sort mode and delete setting
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.set('X-Sort-Mode', data.sortMode || 'default');
+  res.set('X-Delete-Enabled', data.deleteEnabled === false ? 'false' : 'true');
   res.json(data.todos);
 });
 
@@ -981,6 +1032,7 @@ app.post('/api/todos', requireAuth, (req, res) => {
   const data = getSessionTodos(req.session);
   let todos = data.todos;
   const sortMode = data.sortMode || 'default';
+  const deleteEnabled = data.deleteEnabled;
   const nextId = todos.length > 0 ? Math.max(...todos.map(t => t.id)) + 1 : 1;
   const todo = { 
     id: nextId, 
@@ -990,7 +1042,7 @@ app.post('/api/todos', requireAuth, (req, res) => {
     createdAt: Date.now()
   };
   todos.push(todo);
-  saveSessionTodos(todos, req.session, sortMode);
+  saveSessionTodos(todos, req.session, sortMode, deleteEnabled);
   broadcast(todos, req.session.passwordHash);
 
   res.status(201).json(todo);
@@ -1003,7 +1055,7 @@ app.put('/api/todos', requireAuth, (req, res) => {
   }
 
   const data = getSessionTodos(req.session);
-  saveSessionTodos(newTodos, req.session, data.sortMode);
+  saveSessionTodos(newTodos, req.session, data.sortMode, data.deleteEnabled);
   broadcast(newTodos, req.session.passwordHash);
 
   res.status(200).json({ message: 'Todos restored successfully' });
@@ -1016,6 +1068,7 @@ app.put('/api/todos/:id', requireAuth, (req, res) => {
   const data = getSessionTodos(req.session);
   let todos = data.todos;
   const sortMode = data.sortMode || 'default';
+  const deleteEnabled = data.deleteEnabled;
   const todo = todos.find(t => t.id === id);
   if (!todo) return res.status(404).json({ error: 'Not found' });
 
@@ -1023,21 +1076,48 @@ app.put('/api/todos/:id', requireAuth, (req, res) => {
   if (typeof done === 'boolean') todo.done = done;
   if (typeof favorite === 'boolean') todo.favorite = favorite;
 
-  saveSessionTodos(todos, req.session, sortMode);
+  saveSessionTodos(todos, req.session, sortMode, deleteEnabled);
   broadcast(todos, req.session.passwordHash);
   res.json(todo);
+});
+
+app.delete('/api/todos/clear-completed', requireAuth, (req, res) => {
+  const data = getSessionTodos(req.session);
+  let todos = data.todos;
+  const sortMode = data.sortMode || 'default';
+  const deleteEnabled = data.deleteEnabled;
+  
+  // Filter out completed todos
+  const completedTodos = todos.filter(t => t.done);
+  const remainingTodos = todos.filter(t => !t.done);
+  
+  if (completedTodos.length === 0) {
+    return res.json({ message: 'No completed todos to clear', deleted: 0 });
+  }
+  
+  saveSessionTodos(remainingTodos, req.session, sortMode, deleteEnabled);
+  broadcast(remainingTodos, req.session.passwordHash);
+
+  res.json({ message: 'Cleared completed todos', deleted: completedTodos.length });
 });
 
 app.delete('/api/todos/:id', requireAuth, (req, res) => {
   const id = Number(req.params.id);
   const data = getSessionTodos(req.session);
+  
+  // Check if delete is disabled
+  if (data.deleteEnabled === false) {
+    return res.status(403).json({ error: 'Delete is disabled' });
+  }
+  
   let todos = data.todos;
   const sortMode = data.sortMode || 'default';
+  const deleteEnabled = data.deleteEnabled;
   const index = todos.findIndex(t => t.id === id);
   if (index === -1) return res.status(404).json({ error: 'Not found' });
 
   const removed = todos.splice(index, 1)[0];
-  saveSessionTodos(todos, req.session, sortMode);
+  saveSessionTodos(todos, req.session, sortMode, deleteEnabled);
   broadcast(todos, req.session.passwordHash);
 
   res.json(removed);
@@ -1051,9 +1131,38 @@ app.put('/api/sort', requireAuth, (req, res) => {
   }
   
   const data = getSessionTodos(req.session);
-  saveSessionTodos(data.todos, req.session, sortMode);
+  saveSessionTodos(data.todos, req.session, sortMode, data.deleteEnabled);
   
   res.json({ sortMode });
+});
+
+// --- Delete enabled endpoint ---
+app.put('/api/delete-enabled', requireAuth, (req, res) => {
+  const { deleteEnabled } = req.body;
+  
+  // Accept boolean or string 'true'/'false'
+  let enabled;
+  if (typeof deleteEnabled === 'boolean') {
+    enabled = deleteEnabled;
+  } else if (typeof deleteEnabled === 'string') {
+    enabled = deleteEnabled === 'true';
+  } else {
+    return res.status(400).json({ error: 'Invalid deleteEnabled value' });
+  }
+  
+  const data = getSessionTodos(req.session);
+  saveSessionTodos(data.todos, req.session, data.sortMode, enabled);
+  
+  res.json({ deleteEnabled: enabled });
+});
+
+// --- Get settings endpoint ---
+app.get('/api/settings', requireAuth, (req, res) => {
+  const data = getSessionTodos(req.session);
+  res.json({
+    sortMode: data.sortMode || 'default',
+    deleteEnabled: data.deleteEnabled !== false
+  });
 });
 
 // --- Archive endpoint ---
