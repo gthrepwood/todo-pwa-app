@@ -215,6 +215,10 @@ This tests Unicode support across multiple scripts: Chinese, Urdu, Japanese, Hin
 ## Push (internal)
 
 ```bash
+# Using npm script (recommended)
+npm run docker:release
+
+# Or manual commands
 docker build -t todo-pwa:latest .
 docker tag todo-pwa:latest gthrepwood/todo-pwa:latest
 docker push gthrepwood/todo-pwa:latest
