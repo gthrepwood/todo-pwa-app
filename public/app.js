@@ -816,6 +816,9 @@ mainMenu.addEventListener('click', (e) => {
     case 'save-db':
       saveDb();
       break;
+    case 'add-multi':
+      showMultiAddPopup();
+      break;
     case 'load-db':
       loadDb();
       break;
@@ -883,6 +886,57 @@ function loadDb() {
   });
   input.click();
 }
+
+// --- Multi-add popup ---
+const multiAddPopup = document.getElementById('multi-add-popup');
+const multiAddText = document.getElementById('multi-add-text');
+const multiAddCancel = document.getElementById('multi-add-cancel');
+const multiAddOk = document.getElementById('multi-add-ok');
+
+function showMultiAddPopup() {
+  multiAddPopup.classList.remove('hidden');
+  multiAddText.value = '';
+  multiAddText.focus();
+}
+
+function hideMultiAddPopup() {
+  multiAddPopup.classList.add('hidden');
+}
+
+async function addMultipleTodos() {
+  const text = multiAddText.value;
+  if (!text.trim()) {
+    hideMultiAddPopup();
+    return;
+  }
+  
+  // Split by newlines and trim trailing spaces
+  const lines = text.split('\n').map(line => line.trimEnd().trim());
+  
+  // Filter out empty lines
+  const validLines = lines.filter(line => line.trim().length > 0);
+  
+  if (validLines.length === 0) {
+    hideMultiAddPopup();
+    return;
+  }
+  
+  // Add each valid line as a todo
+  for (const line of validLines) {
+    await addTodo(line);
+  }
+  
+  hideMultiAddPopup();
+}
+
+multiAddCancel.addEventListener('click', hideMultiAddPopup);
+multiAddOk.addEventListener('click', addMultipleTodos);
+
+multiAddPopup.addEventListener('click', (e) => {
+  if (e.target === multiAddPopup) {
+    hideMultiAddPopup();
+  }
+});
 
 // Fullscreen toggle
 const fullscreenBtn = document.getElementById('fullscreen-btn');

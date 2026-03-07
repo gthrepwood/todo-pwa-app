@@ -28,6 +28,7 @@
       <a href="#" data-menu="toggle-delete">✓ Delete enabled</a>
       <a href="#" data-menu="save-db">💾 Save DB</a>
       <a href="#" data-menu="load-db">📂 Load DB</a>
+      <a href="#" data-menu="add-multi">➕ Add Multiple</a>
       <a href="#" data-menu="login">🔐 Login</a>
       <a href="#" data-menu="logout">🚪 Logout</a>
     </nav>
@@ -62,6 +63,21 @@
 
     <input type="checkbox" id="show-done-toggle" class="hidden">
     <ul id="todo-list"></ul>
+
+    <!-- Multi-add popup -->
+    <div id="multi-add-popup" class="popup hidden">
+      <div class="popup-content">
+        <h3>Add Multiple Items</h3>
+        <p>Enter one task per line:</p>
+        <textarea id="multi-add-text" rows="8" placeholder="Task 1
+Task 2
+Task 3"></textarea>
+        <div class="popup-buttons">
+          <button id="multi-add-cancel">Cancel</button>
+          <button id="multi-add-ok">OK</button>
+        </div>
+      </div>
+    </div>
 
     <button id="undo-btn" class="hidden" title="Undo last action (Ctrl+Z)">Undo</button>
   </main>
