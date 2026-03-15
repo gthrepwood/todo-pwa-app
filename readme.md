@@ -263,8 +263,14 @@ services:
 ## Kill running app
 
 ```
+# PowerShell
 Stop-Process -Id (Get-NetTCPConnection -LocalPort 3004).OwningProcess -Force
+
+# Linux
+kill -9 $(lsof -t -i:3004)
 ```
+
+
 
 ## 📄 License
 

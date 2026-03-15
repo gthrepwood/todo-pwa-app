@@ -1,0 +1,8 @@
+{
+  "terminal.integrated.env.linux": {
+    "NODE_PATH": "/var/tmp/node_modules"
+  },
+  "terminal.integrated.env.osx": {
+    "NODE_PATH": "/var/tmp/node_modules"
+  }
+}

@@ -1072,7 +1072,13 @@ app.put('/api/todos/:id', requireAuth, (req, res) => {
   const todo = todos.find(t => t.id === id);
   if (!todo) return res.status(404).json({ error: 'Not found' });
 
-  if (typeof text === 'string') todo.text = text.trim();
+  if (typeof text === 'string') {
+    const trimmedText = text.trim();
+    if (trimmedText.length === 0) {
+      return res.status(400).json({ error: 'Text cannot be empty' });
+    }
+    todo.text = trimmedText;
+  }
   if (typeof done === 'boolean') todo.done = done;
   if (typeof favorite === 'boolean') todo.favorite = favorite;
 

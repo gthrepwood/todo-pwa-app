@@ -246,7 +246,7 @@ function updateMenuLabels() {
   const sortDefaultLink = document.querySelector('[data-menu="sort-default"]');
   const sortAlphaLink = document.querySelector('[data-menu="sort-alpha"]');
   if (sortDefaultLink) {
-    sortDefaultLink.textContent = currentSortMode === 'default' ? '✓ Sort by added' : '📋 Sort by added';
+    sortDefaultLink.textContent = currentSortMode === 'default' ? '✓ Sort by added' : 'Sort by added';
   }
   if (sortAlphaLink) {
     sortAlphaLink.textContent = currentSortMode === 'alpha' ? '✓ A-Z Sort alphabetically' : 'A-Z Sort alphabetically';
@@ -321,20 +321,24 @@ function renderTodos() {
   let todosToRender = showDone ? allTodos : allTodos.filter(t => !t.done);
 
   // Sort based on current sort mode
-  // Always keep completed tasks after non-completed tasks
+  // Apply the selected sort mode (alpha or by id), then keep favorites and done status
   todosToRender = [...todosToRender].sort((a, b) => {
-    // First, keep favorites first
+    // First apply the selected sort mode
+    if (currentSortMode === 'alpha') {
+      const alphaCompare = a.text.localeCompare(b.text);
+      if (alphaCompare !== 0) return alphaCompare;
+    } else {
+      // default: sort by added time (id represents creation order)
+      if (a.id !== b.id) return a.id - b.id;
+    }
+    
+    // Then keep favorites first
     if (a.favorite !== b.favorite) return b.favorite ? 1 : -1;
     
-    // Second, keep non-completed before completed
+    // Then keep non-completed before completed
     if (a.done !== b.done) return a.done ? 1 : -1;
     
-    // Then apply the selected sort mode
-    if (currentSortMode === 'alpha') {
-      return a.text.localeCompare(b.text);
-    }
-    // default: sort by added time (id represents creation order)
-    return a.id - b.id;
+    return 0;
   });
 
   // Clear existing list before rendering
@@ -353,9 +357,9 @@ function renderTodos() {
     
     // Use innerHTML for simpler and faster element creation
     li.innerHTML = `
+      <button class="toggle-btn">${todo.done ? '↩' : '❏'}</button>
       <button class="fav-btn">${todo.favorite ? '⭐' : '☆'}</button>
       <span class="todo-text">${todo.text}</span>
-      <button class="toggle-btn">${todo.done ? '↩' : '🆗'}</button>
       ${deleteButton}
     `;
 
@@ -587,7 +591,9 @@ list.addEventListener('click', e => {
     input.style.cssText = 'width: 100%; padding: 2px 4px; font: inherit;';
 
     const finishEdit = async () => {
-      const newText = input.value.trim();
+      // Store reference to input before potential DOM removal
+      const inputValue = input.value;
+      const newText = inputValue.trim();
       if (newText && newText !== currentText) {
         // Save to server
         await fetchWithLogging(`${API_BASE}/${todo.id}`, {
@@ -595,10 +601,13 @@ list.addEventListener('click', e => {
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify({ text: newText })
         });
-        // The UI will update via WebSocket broadcast
+        // Update local state immediately
+        todo.text = newText;
+        // Force immediate re-render
+        renderTodos();
       } else {
-        // Revert display if no change or empty
-        span.textContent = currentText;
+        // Revert display if no change or empty - just re-render to be safe
+        renderTodos();
       }
     };
 
@@ -778,7 +787,7 @@ mainMenu.addEventListener('click', (e) => {
       break;
     case 'sort-alpha':
       currentSortMode = 'alpha';
-      link.textContent = '✓ A-Z Sort alphabetically';
+      updateMenuLabels();
       // Save sort mode to server
       fetchWithLogging('/api/sort', {
         method: 'PUT',
@@ -789,7 +798,7 @@ mainMenu.addEventListener('click', (e) => {
       break;
     case 'sort-default':
       currentSortMode = 'default';
-      link.textContent = '✓ Sort by added';
+      updateMenuLabels();
       // Save sort mode to server
       fetchWithLogging('/api/sort', {
         method: 'PUT',
