@@ -21,6 +21,24 @@ if (savedShowCompleted !== null) {
   showDoneToggle.checked = savedShowCompleted === 'true';
 }
 
+// Load font size from localStorage
+let currentFontSize = localStorage.getItem('fontSize') || 'normal';
+document.body.classList.add(`font-${currentFontSize}`);
+
+/**
+ * Sets the font size and persists it to localStorage.
+ * @param {string} size - 'small', 'normal', or 'large'
+ */
+function setFontSize(size) {
+  // Remove all font size classes
+  document.body.classList.remove('font-small', 'font-normal', 'font-large');
+  // Add the new font size class
+  document.body.classList.add(`font-${size}`);
+  // Save to localStorage
+  localStorage.setItem('fontSize', size);
+  currentFontSize = size;
+}
+
 try {
   const cachedTodos = localStorage.getItem('cachedTodos');
   if (cachedTodos) {
@@ -821,6 +839,15 @@ mainMenu.addEventListener('click', (e) => {
       // Update menu label
       link.textContent = deleteEnabled ? '✓ Delete enabled' : '🙈 Delete disabled';
       renderTodos();
+      break;
+    case 'font-small':
+      setFontSize('small');
+      break;
+    case 'font-normal':
+      setFontSize('normal');
+      break;
+    case 'font-large':
+      setFontSize('large');
       break;
     case 'save-db':
       saveDb();
