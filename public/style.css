@@ -98,6 +98,15 @@ button:hover {
   color: #777;
 }
 
+.todo-text a {
+  color: #1976d2;
+  text-decoration: underline;
+}
+
+.todo-text a:hover {
+  color: #145ca3;
+}
+
 .todo-item button {
   margin-left: 0.25rem;
   padding: 0.2rem 0.4rem;
@@ -355,7 +364,6 @@ footer a {
 }
 
 .menu-dropdown-content {
-  display: none;
   position: absolute;
   left: 100%;
   top: 0;
@@ -366,10 +374,13 @@ footer a {
   z-index: 101;
 }
 
-.menu-dropdown:hover .menu-dropdown-content {
+/* Show dropdown on hover and when not hidden */
+.menu-dropdown:hover .menu-dropdown-content:not(.hidden),
+.menu-dropdown-content:not(.hidden) {
   display: block;
 }
 
+/* Add some spacing for dropdown items */
 .menu-dropdown-content a {
   display: block;
   padding: 0.75rem 1.25rem;

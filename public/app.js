@@ -331,6 +331,17 @@ if (urlParams.has('oauth_complete')) {
 }
 
 /**
+ * Converts URLs in text to clickable anchor tags.
+ * @param {string} text - The text that may contain URLs.
+ * @returns {string} - The text with URLs converted to anchor tags.
+ */
+function convertUrlsToLinks(text) {
+  // Regex to match URLs
+  const urlRegex = /(https?:\/\/[^\s<]+)/g;
+  return text.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+}
+
+/**
  * Renders the todo list to the DOM.
  */
 function renderTodos() {
@@ -377,7 +388,7 @@ function renderTodos() {
     li.innerHTML = `
       <button class="toggle-btn">${todo.done ? '↩' : '❏'}</button>
       <button class="fav-btn">${todo.favorite ? '⭐' : '☆'}</button>
-      <span class="todo-text">${todo.text}</span>
+      <span class="todo-text">${convertUrlsToLinks(todo.text)}</span>
       ${deleteButton}
     `;
 
@@ -413,6 +424,29 @@ function hideUndoButton() {
  */
 async function addTodo(text) {
   hideUndoButton();
+  
+  // Check if there's an existing completed todo with the same text
+  const existingDoneTodo = allTodos.find(t => t.done && t.text === text);
+  if (existingDoneTodo) {
+    // Toggle the existing completed todo back to uncompleted
+    undoStack.push(JSON.parse(JSON.stringify(allTodos)));
+    const response = await fetchWithLogging(`${API_BASE}/${existingDoneTodo.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify({ done: false })
+    });
+    if (response.status === 401) {
+      showLoginScreen();
+    } else {
+      existingDoneTodo.done = false;
+      renderTodos();
+      showUndoButton();
+    }
+    return;
+  }
   
   // Optimistic update: add to local array immediately for correct sorting
   const tempId = Date.now(); // Temporary negative ID for optimistic insert
@@ -633,7 +667,7 @@ list.addEventListener('click', e => {
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') input.blur();
       if (e.key === 'Escape') {
-        span.textContent = currentText; // Revert and don't save
+        span.innerHTML = convertUrlsToLinks(currentText); // Revert and don't save
       }
     });
 
@@ -780,6 +814,17 @@ mainMenu.addEventListener('click', (e) => {
   const link = e.target.closest('[data-menu]');
   if (!link) return;
   e.preventDefault();
+
+  // Don't close menu for dropdown toggle - toggle dropdown instead
+  if (link.classList.contains('menu-dropdown-toggle')) {
+    const dropdown = link.closest('.menu-dropdown');
+    const content = dropdown?.querySelector('.menu-dropdown-content');
+    if (content) {
+      content.classList.toggle('hidden');
+    }
+    return;
+  }
+
   mainMenu.classList.add('hidden');
 
   const action = link.dataset.menu;
