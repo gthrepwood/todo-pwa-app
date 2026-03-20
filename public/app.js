@@ -1019,8 +1019,14 @@ multiAddPopup.addEventListener('click', (e) => {
   }
 });
 
-// Fullscreen toggle
+// Fullscreen toggle - hide in PWA mode
 const fullscreenBtn = document.getElementById('fullscreen-btn');
+
+// Hide fullscreen button in PWA (standalone) mode
+if (window.matchMedia('(display-mode: standalone)').matches) {
+  fullscreenBtn.style.display = 'none';
+}
+
 fullscreenBtn.addEventListener('click', () => {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen().catch(err => {
