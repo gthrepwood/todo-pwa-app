@@ -745,7 +745,7 @@ app.use(cors());
 app.use(cookieParser());
 app.use(express.json());
 
-const SENSITIVE_LOG_KEYS = new Set(['password', 'token', 'authtoken', 'oauth_token']);
+const SENSITIVE_LOG_KEYS = new Set(['pa$$word', 'token', 'authtoken', 'oauth_token']);
 
 function sanitizeLogValue(value, maxLength = 2000) {
   if (value === undefined || value === null) {
