@@ -162,26 +162,41 @@ async function testSortModePersistence() {
     }
 }
 
+async function clearAllTodos() {
+    for (let attempt = 0; attempt < 20; attempt++) {
+        let todos = await getTodos();
+        if (todos.length === 0) return true;
+        console.log(`   Clear attempt ${attempt + 1}: ${todos.length} todos remaining`);
+        for (const todo of todos) {
+            await deleteTodo(todo.id);
+        }
+        await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    const remaining = await getTodos();
+    if (remaining.length > 0) {
+        for (const todo of remaining) {
+            await deleteTodo(todo.id);
+        }
+    }
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return true;
+}
+
 // ============================================
 // TEST 3: Favorites and undo
 // ============================================
 async function testFavoritesAndUndo() {
     console.log('=== TEST 3: Favorites and undo ===\n');
     
-    // Clear existing todos first
-    console.log('1. Clearing existing todos...');
-    let todos = await getTodos();
-    for (const todo of todos) {
-        await deleteTodo(todo.id);
-    }
+    await clearAllTodos();
     
-    // Add todos
-    console.log('2. Adding todos...');
     await addTodo('Task A');
     await addTodo('Task B');
     await addTodo('Task C');
     
-    todos = await getTodos();
+    await new Promise(resolve => setTimeout(resolve, 150));
+    
+    let todos = await getTodos();
     console.log(`   Added ${todos.length} todos`);
     
     // Toggle favorite on first todo
@@ -221,20 +236,15 @@ async function testFavoritesAndUndo() {
 async function testDeleteAndUndo() {
     console.log('=== TEST 4: Delete and undo ===\n');
     
-    // Clear existing todos first
-    console.log('1. Clearing existing todos...');
-    let todos = await getTodos();
-    for (const todo of todos) {
-        await deleteTodo(todo.id);
-    }
+    await clearAllTodos();
     
-    // Add todos
-    console.log('2. Adding todos...');
     await addTodo('Delete Me 1');
     await addTodo('Delete Me 2');
     await addTodo('Keep Me');
     
-    todos = await getTodos();
+    await new Promise(resolve => setTimeout(resolve, 150));
+    
+    let todos = await getTodos();
     const deletedId1 = todos[0].id;
     const deletedId2 = todos[1].id;
     console.log(`   Added ${todos.length} todos`);
@@ -273,17 +283,12 @@ async function testDeleteAndUndo() {
 async function testSaveRestoreDatabase() {
     console.log('=== TEST 5: Save and restore database ===\n');
     
-    // Clear existing todos first
-    console.log('1. Clearing existing todos...');
-    let todos = await getTodos();
-    for (const todo of todos) {
-        await deleteTodo(todo.id);
-    }
+    await clearAllTodos();
     
-    // Add todos
-    console.log('2. Creating test todos...');
     await addTodo('Original Task 1');
     await addTodo('Original Task 2');
+    
+    await new Promise(resolve => setTimeout(resolve, 150));
     
     let todosArr = await getTodos();
     console.log(`   Created ${todosArr.length} todos`);
@@ -323,17 +328,12 @@ async function testSaveRestoreDatabase() {
 async function testArchiveDatabase() {
     console.log('=== TEST 6: Archive database ===\n');
     
-    // Clear existing todos first
-    console.log('1. Clearing existing todos...');
-    let todos = await getTodos();
-    for (const todo of todos) {
-        await deleteTodo(todo.id);
-    }
+    await clearAllTodos();
     
-    // Add some todos
-    console.log('2. Adding test todos...');
     await addTodo('Archive Test 1');
     await addTodo('Archive Test 2');
+    
+    await new Promise(resolve => setTimeout(resolve, 150));
     
     todos = await getTodos();
     console.log(`   Created ${todos.length} todos`);

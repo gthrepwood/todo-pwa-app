@@ -744,6 +744,83 @@ if (Object.keys(passwords).length === 0 && fs.existsSync(path.join(DATA_DIR, 'to
 app.use(cors());
 app.use(cookieParser());
 app.use(express.json());
+
+const SENSITIVE_LOG_KEYS = new Set(['password', 'token', 'authtoken', 'oauth_token']);
+
+function sanitizeLogValue(value, maxLength = 2000) {
+  if (value === undefined || value === null) {
+    return value;
+  }
+
+  if (Buffer.isBuffer(value)) {
+    value = value.toString('utf8');
+  }
+
+  if (typeof value === 'string') {
+    try {
+      return sanitizeLogValue(JSON.parse(value), maxLength);
+    } catch (err) {
+      return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+    }
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(item => sanitizeLogValue(item, maxLength));
+  }
+
+  if (typeof value === 'object') {
+    const sanitized = {};
+    Object.entries(value).forEach(([key, nestedValue]) => {
+      sanitized[key] = SENSITIVE_LOG_KEYS.has(key.toLowerCase())
+        ? '[redacted]'
+        : sanitizeLogValue(nestedValue, maxLength);
+    });
+
+    const serialized = JSON.stringify(sanitized);
+    if (!serialized) {
+      return sanitized;
+    }
+    if (serialized.length > maxLength) {
+      return `${serialized.slice(0, maxLength)}...`;
+    }
+    return sanitized;
+  }
+
+  return value;
+}
+
+app.use((req, res, next) => {
+  const requestStartedAt = Date.now();
+  const originalEnd = res.end.bind(res);
+  let responseBody;
+
+  res.end = (chunk, encoding, callback) => {
+    if (chunk !== undefined) {
+      responseBody = chunk;
+    }
+
+    const logResponse = () => {
+      console.log(JSON.stringify({
+        timestamp: new Date(requestStartedAt).toISOString(),
+        url: req.originalUrl || req.url,
+        request: {
+          method: req.method,
+          body: sanitizeLogValue(req.body) ?? null
+        },
+        response: {
+          statusCode: res.statusCode,
+          body: sanitizeLogValue(responseBody) ?? null
+        }
+      }));
+    };
+
+    res.once('finish', logResponse);
+    return originalEnd(chunk, encoding, callback);
+  };
+
+  next();
+});
+
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Swagger UI

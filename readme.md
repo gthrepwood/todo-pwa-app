@@ -80,7 +80,7 @@ http://localhost:3004/api-docs
 
 ---
 
-### 🐳 Docker
+## 🐳 Docker
 
 **Build the image:**
 
@@ -98,7 +98,7 @@ docker run -p 3004:3004 todo-pwa:latest
 
 ```bash
 docker ps | grep :3004
-```
+ ```
 
 ---
 
@@ -115,6 +115,8 @@ This app can be hosted on [Dynu.com](https://www.dynu.com/) because it supports 
 | `PORT`                  | `3004`     | Server port                               |
 | `SESSION_MAX_AGE_HOURS` | `60`       | Session timeout in mins (default: 60 min) |
 | `BASE_URL`              | *(auto)*   | Base URL for OAuth callback               |
+| `LOG`                   | `0`        | Set to `1` for detailed request logging (URL, response, elapsed time) |
+| `CACHE`                 | `1`        | Set to `0` to disable in-memory caching   |
 | `GOOGLE_CLIENT_ID`      | *(none)*   | Google OAuth2 Client ID                   |
 | `GOOGLE_CLIENT_SECRET`  | *(none)*   | Google OAuth2 Client Secret               |
 | `MICROSOFT_CLIENT_ID`  | *(none)*   | Microsoft OAuth2 Client ID                |
@@ -254,7 +256,6 @@ services:
       - GOOGLE_CLIENT_ID=XXXXXX
       - GOOGLE_CLIENT_SECRET=XXXXXX
       - BASE_URL=https://XXXXXX
-    ports:      
     ports:
       - 3004:3004
     restart: unless-stopped
