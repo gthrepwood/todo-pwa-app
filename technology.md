@@ -87,10 +87,10 @@ server {
     listen 80;
     listen 443 ssl;
     server_name todo.example.com;
-    
+
     ssl_certificate /path/to/cert.pem;
     ssl_certificate_key /path/to/key.pem;
-    
+
     location / {
         proxy_pass http://localhost:3004;
         proxy_http_version 1.1;
@@ -147,13 +147,13 @@ The CSS uses responsive design principles with flexible layouts that adapt to an
 
 ### Key PWA Features
 
-| Feature | Implementation |
-|---------|---------------|
-| Offline Support | Service Worker caches static assets |
-| Home Screen Installation | Web App Manifest with icons |
-| App-Like Experience | Fullscreen display mode |
-| Background Sync | WebSocket for real-time updates |
-| Responsive Design | CSS flexbox/grid layouts |
+| Feature                  | Implementation                      |
+| ------------------------ | ----------------------------------- |
+| Offline Support          | Service Worker caches static assets |
+| Home Screen Installation | Web App Manifest with icons         |
+| App-Like Experience      | Fullscreen display mode             |
+| Background Sync          | WebSocket for real-time updates     |
+| Responsive Design        | CSS flexbox/grid layouts            |
 
 ### Reference
 
@@ -175,23 +175,23 @@ The backend is built with Node.js using Express.js for routing and WebSocket for
 
 ### API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/login` | Authenticate user and create session |
-| POST | `/api/auth/logout` | End current session |
-| GET | `/api/auth/check` | Verify authentication status |
-| GET | `/api/todos` | Get all todos for authenticated user |
-| POST | `/api/todos` | Create new todo item |
-| PUT | `/api/todos/:id` | Update single todo |
-| DELETE | `/api/todos/:id` | Delete single todo |
-| PUT | `/api/todos` | Bulk update (used for undo) |
+| Method | Endpoint           | Description                          |
+| ------ | ------------------ | ------------------------------------ |
+| POST   | `/api/auth/login`  | Authenticate user and create session |
+| POST   | `/api/auth/logout` | End current session                  |
+| GET    | `/api/auth/check`  | Verify authentication status         |
+| GET    | `/api/todos`       | Get all todos for authenticated user |
+| POST   | `/api/todos`       | Create new todo item                 |
+| PUT    | `/api/todos/:id`   | Update single todo                   |
+| DELETE | `/api/todos/:id`   | Delete single todo                   |
+| PUT    | `/api/todos`       | Bulk update (used for undo)          |
 
 ### Backend Components
 
 - **Express.js**: Web framework for HTTP endpoints
 - **compression**: GZIP/Brotli compression middleware for smaller responses
 - **ws**: WebSocket library for real-time communication
-- **crypto**: Built-in Node.js module for password hashing
+- **crypto**: Built-in Node.js module for topic hashing
 - **fs**: File system module for data persistence
 
 ### Reference
@@ -218,6 +218,7 @@ The backend is designed to be lightweight with minimal resource usage, making it
 ### Package Dependencies
 
 Only 4 npm packages are required:
+
 - **express**: Web framework (~5MB)
 - **cors**: Cross-origin resource sharing (~100KB)
 - **ws**: WebSocket library (~100KB)
@@ -225,13 +226,13 @@ Only 4 npm packages are required:
 
 ### Resource Usage
 
-| Metric | This Project | Traditional App |
-|--------|---------------|-----------------|
-| Dependencies | 4 | 50+ |
-| Memory Usage | ~50MB | 500MB+ |
-| Database | JSON files | PostgreSQL/MySQL |
-| Container Size | ~200MB | 1GB+ |
-| Startup Time | < 2 seconds | 10+ seconds |
+| Metric         | This Project | Traditional App  |
+| -------------- | ------------ | ---------------- |
+| Dependencies   | 4            | 50+              |
+| Memory Usage   | ~50MB        | 500MB+           |
+| Database       | JSON files   | PostgreSQL/MySQL |
+| Container Size | ~200MB       | 1GB+             |
+| Startup Time   | < 2 seconds  | 10+ seconds      |
 
 ### Benefits
 
@@ -307,6 +308,7 @@ The application uses `requestFullscreen()` and `exitFullscreen()` methods along 
 ### Browser Support
 
 Fullscreen API is supported in all modern browsers:
+
 - Chrome 15+
 - Firefox 10+
 - Safari 5.1+
@@ -358,7 +360,8 @@ containers:
 ### Data Persistence
 
 The `/app/data` volume stores:
-- `passwords.json` - Hashed passwords
+
+- `topics.json` - Hashed topics
 - `sessions.json` - Active sessions
 - `todos_*.json` - Todo data files
 - `key.pem` and `cert.pem` - SSL certificates
@@ -417,26 +420,26 @@ Each todo object has a `favorite` boolean property. When rendering the todo list
 
 ### Description
 
-The application supports creating and managing multiple independent todo lists. Each list is identified by a unique password, allowing users to have separate lists for different purposes (work, personal, projects, etc.).
+The application supports creating and managing multiple independent todo lists. Each list is identified by a unique topic, allowing users to have separate lists for different purposes (work, personal, projects, etc.).
 
 ### Implementation in This Project
 
-The multiple list feature is implemented using password-based isolation:
+The multiple list feature is implemented using topic-based isolation:
 
-1. **First Login**: When a new password is used, a new todo file is created
-2. **Separate Databases**: Each password has its own `todos_<hash>.json` file
-3. **Session-Based**: Sessions store the password hash and load corresponding todos
-4. **No Explicit List Management**: Lists are implicitly created by password
+1. **First Login**: When a new topic is used, a new todo file is created
+2. **Separate Databases**: Each topic has its own `todos_<hash>.json` file
+3. **Session-Based**: Sessions store the topic hash and load corresponding todos
+4. **No Explicit List Management**: Lists are implicitly created by topic
 
 ### Example Data Files
 
 ```
 backend/data/
-├── passwords.json              # Hash storage
+├── topics.json              # Hash storage
 ├── sessions.json              # Active sessions
-├── todos_abc123.json          # List for password A
-├── todos_def456.json          # List for password B
-└── todos_ghi789.json          # List for password C
+├── todos_abc123.json          # List for topic A
+├── todos_def456.json          # List for topic B
+└── todos_ghi789.json          # List for topic C
 ```
 
 ### Use Cases
@@ -465,12 +468,12 @@ The cooperative features are implemented through:
 
 1. **Session-Based Access**: Each user has a session token
 2. **Real-Time Broadcast**: WebSocket pushes changes instantly
-3. **File-Based Storage**: Each password has a shared data file
+3. **File-Based Storage**: Each topic has a shared data file
 4. **Conflict Resolution**: Last-write-wins strategy
 
 ### How Multiple Users Share a List
 
-1. Users share the same password
+1. Users share the same topic
 2. Each user gets their own session token
 3. All sessions load the same todo file
 4. Changes are broadcast to all connected clients
@@ -515,6 +518,7 @@ The undo system uses a stack-based approach:
 ### Test Cases
 
 Shell script tests validate the undo functionality:
+
 - Delete todo and verify removal
 - Undo delete and verify restoration
 - Multiple operations and full undo
@@ -580,22 +584,23 @@ The save/load functionality allows users to export their todo list to a JSON fil
 
 ### Description
 
-Protected endpoints require authentication to access. The application implements a session-based authentication system where users must log in with a password to access their todo data.
+Protected endpoints require authentication to access. The application implements a session-based authentication system where users must log in with a topic to access their todo data.
 
 ### Implementation in This Project
 
 **Authentication Flow**:
-1. User submits password via login form
-2. Server hashes password with SHA-256
+
+1. User submits topic via login form
+2. Server hashes topic with SHA-256
 3. Server creates a session with a random 256-bit token
 4. Client includes token in all subsequent requests via Authorization header
 5. Server validates token before processing requests
 
 ### Security Features
 
-1. **Password Hashing**: SHA-256 hashing, never plain text
+1. **Topic-name Hashing**: SHA-256 hashing, never plain text
 2. **Session Tokens**: 256-bit random tokens
-3. **File-Based Storage**: Passwords stored in JSON
+3. **File-Based Storage**: Topics stored in JSON
 4. **HTTP 401**: Returns 401 for unauthenticated requests
 5. **Token Validation**: Every request validated against session store
 
@@ -654,10 +659,10 @@ docker exec -it todo-pwa sh
 
 ### Image Size Comparison
 
-| Base Image | Approximate Size |
-|------------|------------------|
-| node:20-slim | ~900MB |
-| node:20-alpine | ~170MB |
+| Base Image           | Approximate Size           |
+| -------------------- | -------------------------- |
+| node:20-slim         | ~900MB                     |
+| node:20-alpine       | ~170MB                     |
 | This project's image | ~950MB (with dependencies) |
 
 ### Reference
@@ -691,16 +696,19 @@ HTTPS encrypts all communication between the client and server, providing securi
 ### Trusting Self-Signed Certificates
 
 **Chrome/Edge**:
+
 1. Open https://yourdomain:3004
 2. Click "Advanced" → "Proceed to localhost (unsafe)"
 
 **Firefox**:
+
 1. Open https://yourdomain:3004
 2. Click "Advanced" → "Accept the Risk and Continue"
 
 ### Production Considerations
 
 For production, consider using:
+
 - **Let's Encrypt**: Free, automated certificates
 - **Traefik**: Automatic certificate management
 - **Nginx Proxy Manager**: GUI-based SSL management
@@ -724,6 +732,7 @@ The application includes comprehensive test cases written in multiple languages 
 #### Shell Script Tests
 
 The shell script tests use `curl` to make HTTP requests and `jq` to parse JSON responses. Tests cover:
+
 - Login/Authentication
 - Get todos
 - Delete todo
@@ -737,12 +746,12 @@ The JavaScript tests use Node.js built-in `http` module to make requests. Tests 
 
 #### Test Categories
 
-| Category | Languages | Tools |
-|----------|-----------|-------|
-| API Testing | Bash, JavaScript | curl, http module |
-| Undo Testing | Bash, JavaScript | API calls |
-| Authentication | Bash, JavaScript | Token handling |
-| Integration | Bash | Full workflow |
+| Category       | Languages        | Tools             |
+| -------------- | ---------------- | ----------------- |
+| API Testing    | Bash, JavaScript | curl, http module |
+| Undo Testing   | Bash, JavaScript | API calls         |
+| Authentication | Bash, JavaScript | Token handling    |
+| Integration    | Bash             | Full workflow     |
 
 ### Test Execution
 
@@ -784,7 +793,7 @@ node tests/test-undo.js
 │  │  Express.js - HTTP server & routing                         │   │
 │  │  WebSocket (ws) - Real-time broadcasting                    │   │
 │  │  Session Management - Token-based auth                      │   │
-│  │  Password Security - SHA-256 hashing                        │   │
+│  │  Topics Security - SHA-256 hashing                          │   │
 │  │  File I/O - JSON data persistence                           │   │
 │  │  HTTPS Support - SSL/TLS certificates                       │   │
 │  └─────────────────────────────────────────────────────────────┘   │
@@ -793,8 +802,8 @@ node tests/test-undo.js
 ┌────────────────────────────────────────┴───────────────────────────┐
 │                      Data Storage Layer                            │
 │  ┌─────────────────────────────────────────────────────────────┐   │
-│  │  passwords.json      - Password hashes                      │   │
-│  │  sessions.json       - Active user sessions                 │   │
+│  │  topics.json        - Topics hashes                         │   │
+│  │  sessions.json      - Active user sessions                  │   │
 │  │  todos_<hash>.json  - Per-user todo data                    │   │
 │  │  key.pem            - SSL private key                       │   │
 │  │  cert.pem           - SSL certificate                       │   │
@@ -806,23 +815,23 @@ node tests/test-undo.js
 
 ## Technologies Used - Summary Table
 
-| Category | Technology | Purpose |
-|----------|------------|---------|
-| Frontend | HTML5 | Markup |
-| Frontend | CSS3 | Styling |
-| Frontend | JavaScript ES6+ | Client logic |
-| Backend | Node.js 20+ | Server runtime |
-| Backend | Express.js 4.x | Web framework |
-| Backend | compression 1.x | GZIP response compression |
-| Backend | ws 8.x | WebSocket library |
-| Backend | selfsigned 2.x | SSL certificates |
-| Security | SHA-256 | Password hashing |
-| Storage | JSON | File-based data |
-| Container | Docker | Application packaging |
-| PWA | Service Worker | Offline support |
-| PWA | Web App Manifest | Installable app |
-| Testing | Bash | Shell script tests |
-| Testing | Node.js | JavaScript tests |
+| Category  | Technology       | Purpose                   |
+| --------- | ---------------- | ------------------------- |
+| Frontend  | HTML5            | Markup                    |
+| Frontend  | CSS3             | Styling                   |
+| Frontend  | JavaScript ES6+  | Client logic              |
+| Backend   | Node.js 20+      | Server runtime            |
+| Backend   | Express.js 4.x   | Web framework             |
+| Backend   | compression 1.x  | GZIP response compression |
+| Backend   | ws 8.x           | WebSocket library         |
+| Backend   | selfsigned 2.x   | SSL certificates          |
+| Security  | SHA-256          | Topics hashing            |
+| Storage   | JSON             | File-based data           |
+| Container | Docker           | Application packaging     |
+| PWA       | Service Worker   | Offline support           |
+| PWA       | Web App Manifest | Installable app           |
+| Testing   | Bash             | Shell script tests        |
+| Testing   | Node.js          | JavaScript tests          |
 
 ---
 
@@ -832,7 +841,7 @@ This Todo PWA application demonstrates modern web development practices includin
 
 1. **Real-Time Communication**: WebSocket for instant synchronization
 2. **Offline Capabilities**: Service Worker and PWA features
-3. **Security**: HTTPS, password hashing, protected endpoints
+3. **Security**: HTTPS, topic hashing, protected endpoints
 4. **Containerization**: Docker for easy deployment
 5. **Data Persistence**: JSON file-based storage
 6. **User Experience**: Full screen mode, favorites, undo
@@ -845,6 +854,7 @@ The small footprint design ensures efficient resource usage while providing a fu
 ## References
 
 ### Official Documentation
+
 - [Node.js](https://nodejs.org/)
 - [Express.js](https://expressjs.com/)
 - [WebSocket API](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket)
@@ -852,15 +862,17 @@ The small footprint design ensures efficient resource usage while providing a fu
 - [Docker](https://docs.docker.com/)
 
 ### Standards
+
 - [Web App Manifest](https://www.w3.org/TR/appmanifest/)
 - [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API)
 - [Fullscreen API](https://developer.mozilla.org/en-US/docs/Web/API/Fullscreen_API)
 
 ### Security
+
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
 
 ---
 
-*Document Version: 1.0.0*  
-*Last Updated: 2026-02-24*  
-*License: CC BY-SA 4.0*
+_Document Version: 1.0.0_  
+_Last Updated: 2026-02-24_  
+_License: CC BY-SA 4.0_

@@ -8,11 +8,11 @@ const SORT_API = 'http://localhost:3004/api/sort';
 
 let authToken = null;
 
-async function login(password) {
+async function login(topic) {
     const response = await fetch(`${AUTH_API}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
+        body: JSON.stringify({ topic })
     });
     const data = await response.json();
     return data.token;
@@ -87,7 +87,7 @@ async function testSortWithNewTodo() {
     try {
         // Login
         console.log('1. Logging in...');
-        authToken = await login('testpassword');
+        authToken = await login('testtopic');
         console.log('   Logged in successfully');
 
         // Clear existing todos

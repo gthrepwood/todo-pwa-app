@@ -149,16 +149,16 @@ function updateAndCacheTodos(newTodos) {
 }
 
 /**
- * Logs in the user with a password.
- * @param {string} password - The user's password.
+ * Logs in the user with a topic.
+ * @param {string} topic - The user's topic.
  * @returns {Promise<{success: boolean, error?: string}>} - Whether the login was successful.
  */
-async function login(password) {
+async function login(topic) {
   try {
     const response = await fetchWithLogging(`${AUTH_API}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password })
+      body: JSON.stringify({ topic })
     });
 
     if (!response.ok) {
@@ -690,12 +690,12 @@ document.addEventListener('keydown', (e) => {
 // Login form handling
 const loginForm = document.getElementById('login-form');
 const loginError = document.getElementById('login-error');
-const loginPassword = document.getElementById('login-password');
+const loginTopic = document.getElementById('login-topic');
 
 loginForm.addEventListener('submit', async e => {
   e.preventDefault();
-  const password = loginPassword.value;
-  const result = await login(password);
+  const topic = loginTopic.value;
+  const result = await login(topic);
   if (!result.success) {
     loginError.textContent = result.error || 'Login error';
     loginError.classList.remove('hidden');

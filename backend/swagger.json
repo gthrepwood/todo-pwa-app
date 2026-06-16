@@ -36,19 +36,19 @@
     "/api/auth/login": {
       "post": {
         "tags": ["Auth"],
-        "summary": "Login with passkey",
-        "description": "Authenticate with a password to get access to your todo list",
+        "summary": "Login with topic",
+        "description": "Authenticate with a topic to get access to your todo list",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["password"],
+                "required": ["topic"],
                 "properties": {
-                  "password": {
+                  "topic": {
                     "type": "string",
-                    "description": "User's passkey/password"
+                    "description": "User's topic"
                   }
                 }
               }
@@ -73,7 +73,7 @@
             }
           },
           "401": {
-            "description": "Invalid password"
+            "description": "Invalid topic"
           }
         }
       }

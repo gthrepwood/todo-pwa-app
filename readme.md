@@ -15,7 +15,7 @@
 - 👁️ **Show/hide completed** tasks from the menu (persists in localStorage)
 - 🚮 **Delete toggle** — enable/disable delete button from menu
 - 💾 **Save & Load DB** — export/import your todos as JSON
-- 🔐 **Password-protected** — each password has its own todo database
+- 🔐 **Topic-protected** — each topic has its own todo database
 - 📱 **PWA** — installable on mobile, works offline (service worker)
 - 🌐 **Multilingual** — Unicode support (Chinese, Arabic, Hebrew, Japanese, Hindi, Urdu…)
 - 🌙 **Fullscreen mode** on mobile devices

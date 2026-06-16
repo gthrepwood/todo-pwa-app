@@ -6,11 +6,11 @@ const SORT_API = 'http://localhost:3004/api/sort';
 
 let authToken = null;
 
-async function login(password) {
+async function login(topic) {
     const response = await fetch(`${AUTH_API}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
+        body: JSON.stringify({ topic })
     });
     const data = await response.json();
     return data.token;
@@ -110,24 +110,24 @@ async function archiveDatabase() {
 }
 
 // ============================================
-// TEST 1: Login with empty password
+// TEST 1: Login with empty topic
 // ============================================
-async function testEmptyPassword() {
-    console.log('=== TEST 1: Login with empty password ===\n');
+async function testEmptyTopic() {
+    console.log('=== TEST 1: Login with empty topic ===\n');
     
     const response = await fetch(`${AUTH_API}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: '' })
+        body: JSON.stringify({ topic: '' })
     });
     const data = await response.json();
     
     if (!response.ok) {
-        console.log('✓ PASS: Empty password correctly rejected');
+        console.log('✓ PASS: Empty topic correctly rejected');
         console.log(`  Error: ${data.error}\n`);
         return true;
     } else {
-        console.log('✗ FAIL: Empty password was accepted!\n');
+        console.log('✗ FAIL: Empty topic was accepted!\n');
         return false;
     }
 }
@@ -375,9 +375,9 @@ async function runAllTests() {
     let passed = 0;
     let failed = 0;
     
-    // Test 1: Empty password
+    // Test 1: Empty topic
     try {
-        if (await testEmptyPassword()) passed++;
+        if (await testEmptyTopic()) passed++;
         else failed++;
     } catch (e) {
         console.log('✗ FAIL: Test 1 crashed:', e.message, '\n');

@@ -4,13 +4,13 @@ Use this todo list backend at `https://todo.lugu.mywire.org` (or the configured 
 
 ## Authentication
 
-Login with the fixed password `SECRET_LOGIN` before performing any todo operations.
+Login with the fixed topic `SECRET_LOGIN` before performing any todo operations.
 
 ### Login
 ```bash
 curl -X POST https://todo.lugu.mywire.org/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"password":"SECRET_LOGIN"}'
+  -d '{"topic":"SECRET_LOGIN"}'
 ```
 
 Response includes `{ "token": "...", ... }`. Use this token as a Bearer token in all subsequent requests.

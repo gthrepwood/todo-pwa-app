@@ -82,13 +82,13 @@ bash tests/test-undo.sh
 
 ## 🔑 Authentication Note
 
-The current test scripts do **not** include authentication headers. If the server requires a password (default: `todopwa2026`), you need to:
+The current test scripts do **not** include authentication headers. If the server requires a topic (default: `todopwa2026`), you need to:
 
 1. Login first to get a token:
    ```bash
    curl -s -X POST http://localhost:3004/api/auth/login \
      -H "Content-Type: application/json" \
-     -d '{"password":"todopwa2026"}'
+     -d '{"topic":"todopwa2026"}'
    ```
 2. Use the returned token in subsequent requests:
    ```bash

@@ -5,11 +5,11 @@ const AUTH_API = 'http://localhost:3004/api/auth';
 
 let authToken = null;
 
-async function login(password) {
+async function login(topic) {
     const response = await fetch(`${AUTH_API}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
+        body: JSON.stringify({ topic })
     });
     const data = await response.json();
     return data.token;
@@ -86,12 +86,12 @@ async function runSpeedTest() {
     console.log('║    TODO PWA Speed/Performance Test    ║');
     console.log('╚════════════════════════════════════════╝\n');
     
-    const testPassword = 'test-speed-' + Date.now();
-    console.log(`Using test password: ${testPassword}\n`);
+    const testTopic = 'test-speed-' + Date.now();
+    console.log(`Using test topic: ${testTopic}\n`);
     
     // Login
     console.log('Step 0: Logging in...');
-    authToken = await login(testPassword);
+    authToken = await login(testTopic);
     console.log('  Logged in\n');
     
     // Step 1: Add 300 test items - measure first vs last

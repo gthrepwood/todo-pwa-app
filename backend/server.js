@@ -217,7 +217,7 @@ function getOAuthUserId(provider, providerId) {
 
 // Data directory
 const DATA_DIR = path.join(__dirname, 'data');
-const PASSWORDS_FILE = path.join(DATA_DIR, 'passwords.json');
+const TOPICS_FILE = path.join(DATA_DIR, 'topics.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 
 // Ensure data directory exists
@@ -298,31 +298,31 @@ const sessions = loadSessions();
 // Save sessions on server shutdown
 process.on('SIGINT', () => {
   // Flush all pending async writes
-  pendingWrites.forEach((timeoutId, passwordHash) => {
+  pendingWrites.forEach((timeoutId, topicHash) => {
     clearTimeout(timeoutId);
-    const cached = writeCache.get(passwordHash);
+    const cached = writeCache.get(topicHash);
     if (cached) {
-      saveTodosSync(cached.todos, passwordHash, cached.sortMode, cached.deleteEnabled);
+      saveTodosSync(cached.todos, topicHash, cached.sortMode, cached.deleteEnabled);
     }
   });
   saveSessions();
   process.exit();
 });
 
-// --- Password management functions ---
+// --- Topic management functions ---
 
 /**
- * Load passwords from file.
- * @returns {object} The passwords.
+ * Load topics from file.
+ * @returns {object} The topics.
  */
-function loadPasswords() {
+function loadTopics() {
   try {
-    if (fs.existsSync(PASSWORDS_FILE)) {
-      const raw = fs.readFileSync(PASSWORDS_FILE, 'utf8');
+    if (fs.existsSync(TOPICS_FILE)) {
+      const raw = fs.readFileSync(TOPICS_FILE, 'utf8');
       return JSON.parse(raw);
     }
   } catch (err) {
-    console.error('Error reading passwords.json:', err);
+    console.error('Error reading topics.json:', err);
   }
   return {};
 }
@@ -333,9 +333,9 @@ function loadPasswords() {
 function cleanupData() {
   console.log('\n🧹 Running data cleanup...');
   
-  // Load passwords
-  const passwords = loadPasswords();
-  const passwordHashes = Object.keys(passwords);
+  // Load topics
+  const topics = loadTopics();
+  const topicHashes = Object.keys(topics);
   
   // Load sessions as a Map
   const sessionsArray = loadSessions();
@@ -348,7 +348,7 @@ function cleanupData() {
   
   const now = Date.now();
   
-  // Keep only sessions with valid password hashes and not expired
+  // Keep only sessions with valid topic hashes and not expired
   sessionsMap.forEach((session, token) => {
     const sessionAge = now - session.createdAt;
     const isExpired = sessionAge > SESSION_MAX_AGE;
@@ -356,7 +356,7 @@ function cleanupData() {
     if (isExpired) {
       sessionsExpired++;
       sessionsRemoved++;
-    } else if (session.passwordHash && passwordHashes.includes(session.passwordHash)) {
+    } else if (session.topicHash && topicHashes.includes(session.topicHash)) {
       validSessions.set(token, session);
       sessionsKept++;
     } else {
@@ -372,11 +372,11 @@ function cleanupData() {
     console.log(`  Removed ${sessionsRemoved - sessionsExpired} orphaned sessions`);
   }
   
-  // Remove password entries without valid todo files
-  let passwordsRemoved = 0;
-  const validPasswords = {};
+  // Remove topic entries without valid todo files
+  let topicsRemoved = 0;
+  const validTopics = {};
   
-  passwordHashes.forEach(hash => {
+  topicHashes.forEach(hash => {
     const todoFile = getTodoFilePath(hash);
     const archiveFile = path.join(DATA_DIR, 'archive', `todos_${hash}_*.json`);
     
@@ -392,107 +392,107 @@ function cleanupData() {
     }
     
     if (dataFileExists || archivedFileExists) {
-      validPasswords[hash] = passwords[hash];
+      validTopics[hash] = topics[hash];
     } else {
-      passwordsRemoved++;
+      topicsRemoved++;
     }
   });
   
-  if (passwordsRemoved > 0) {
-    savePasswords(validPasswords);
-    console.log(`  Removed ${passwordsRemoved} orphaned password entries`);
+  if (topicsRemoved > 0) {
+    saveTopics(validTopics);
+    console.log(`  Removed ${topicsRemoved} orphaned topic entries`);
   }
   
-  if (sessionsRemoved === 0 && passwordsRemoved === 0) {
+  if (sessionsRemoved === 0 && topicsRemoved === 0) {
     console.log('  No cleanup needed ✓');
   }
   console.log('');
 }
 
 /**
- * Save passwords to file.
- * @param {object} passwords - The passwords to save.
+ * Save topics to file.
+ * @param {object} topics - The topics to save.
  */
-function savePasswords(passwords) {
+function saveTopics(topics) {
   try {
-    fs.writeFileSync(PASSWORDS_FILE, JSON.stringify(passwords, null, 2), 'utf8');
+    fs.writeFileSync(TOPICS_FILE, JSON.stringify(topics, null, 2), 'utf8');
   } catch (err) {
-    console.error('Error writing passwords.json:', err);
+    console.error('Error writing topics.json:', err);
   }
 }
 
-// Password hashing with bcrypt
+// Topic hashing with bcrypt
 const BCRYPT_ROUNDS = 12;
 
 /**
- * Hash a password with bcrypt.
- * @param {string} password - The password to hash.
- * @returns {Promise<string>} The hashed password.
+ * Hash a topic with bcrypt.
+ * @param {string} topic - The topic to hash.
+ * @returns {Promise<string>} The hashed topic.
  */
-async function hashPassword(password) {
-  return await bcrypt.hash(password, BCRYPT_ROUNDS);
+async function hashTopic(topic) {
+  return await bcrypt.hash(topic, BCRYPT_ROUNDS);
 }
 
 /**
- * Verify a password against a bcrypt hash.
- * @param {string} password - The password to verify.
+ * Verify a topic against a bcrypt hash.
+ * @param {string} topic - The topic to verify.
  * @param {string} hash - The hash to verify against.
- * @returns {Promise<boolean>} Whether the password is valid.
+ * @returns {Promise<boolean>} Whether the topic is valid.
  */
-async function verifyPassword(password, hash) {
-  return await bcrypt.compare(password, hash);
+async function verifyTopic(topic, hash) {
+  return await bcrypt.compare(topic, hash);
 }
 
 /**
  * Legacy hash function for backward compatibility (used for file paths).
- * @param {string} password - The password to hash.
- * @returns {string} The hashed password.
+ * @param {string} topic - The topic to hash.
+ * @returns {string} The hashed topic.
  */
-function getDataHash(password) {
-  return crypto.createHash('sha256').update(password).digest('hex');
+function getDataHash(topic) {
+  return crypto.createHash('sha256').update(topic).digest('hex');
 }
 
 /**
- * Check if a password is new.
- * @param {string} password - The password to check.
- * @returns {boolean} Whether the password is new.
+ * Check if a topic is new.
+ * @param {string} topic - The topic to check.
+ * @returns {boolean} Whether the topic is new.
  */
-function isNewPassword(password) {
-  const passwords = loadPasswords();
+function isNewTopic(topic) {
+  const topics = loadTopics();
   // Check if any stored hash matches
-  for (const [storedHash, data] of Object.entries(passwords)) {
+  for (const [storedHash, data] of Object.entries(topics)) {
     if (data.bcryptHash) {
       // New bcrypt format
       return false; // Not new if we find any bcrypt hash
     }
   }
-  return Object.keys(passwords).length === 0;
+  return Object.keys(topics).length === 0;
 }
 
 /**
- * Register a new password.
- * @param {string} password - The password to register.
- * @returns {Promise<string>} The data hash of the password.
+ * Register a new topic.
+ * @param {string} topic - The topic to register.
+ * @returns {Promise<string>} The data hash of the topic.
  */
-async function registerPassword(password) {
-  const passwords = loadPasswords();
-  const dataHash = getDataHash(password);
+async function registerTopic(topic) {
+  const topics = loadTopics();
+  const dataHash = getDataHash(topic);
   
   // Check if already registered
-  if (passwords[dataHash]) {
+  if (topics[dataHash]) {
     return dataHash;
   }
   
   // Create bcrypt hash
-  const bcryptHash = await hashPassword(password);
+  const bcryptHash = await hashTopic(topic);
   
-  passwords[dataHash] = {
+  topics[dataHash] = {
     createdAt: Date.now(),
     bcryptHash: bcryptHash
   };
-  savePasswords(passwords);
+  saveTopics(topics);
   
-  // Create empty todo file for this password
+  // Create empty todo file for this topic
   const todoFile = getTodoFilePath(dataHash);
   if (!fs.existsSync(todoFile)) {
     fs.writeFileSync(todoFile, JSON.stringify([], null, 2), 'utf8');
@@ -501,32 +501,32 @@ async function registerPassword(password) {
 }
 
 /**
- * Verify a password and register it if new.
- * @param {string} password - The password to verify.
- * @returns {Promise<{hash: string, isNew: boolean}>} The data hash and whether the password was new.
+ * Verify a topic and register it if new.
+ * @param {string} topic - The topic to verify.
+ * @returns {Promise<{hash: string, isNew: boolean}>} The data hash and whether the topic was new.
  */
-async function verifyAndRegisterPassword(password) {
-  const passwords = loadPasswords();
-  const dataHash = getDataHash(password);
+async function verifyAndRegisterTopic(topic) {
+  const topics = loadTopics();
+  const dataHash = getDataHash(topic);
   
-  if (passwords[dataHash]) {
-    // User exists - verify password
-    if (passwords[dataHash].bcryptHash) {
-      const valid = await verifyPassword(password, passwords[dataHash].bcryptHash);
+  if (topics[dataHash]) {
+    // User exists - verify topic
+    if (topics[dataHash].bcryptHash) {
+      const valid = await verifyTopic(topic, topics[dataHash].bcryptHash);
       if (!valid) {
-        throw new Error('Invalid password');
+        throw new Error('Invalid topic');
       }
     }
     return { hash: dataHash, isNew: false };
   }
   
   // New user - create bcrypt hash
-  const bcryptHash = await hashPassword(password);
-  passwords[dataHash] = {
+  const bcryptHash = await hashTopic(topic);
+  topics[dataHash] = {
     createdAt: Date.now(),
     bcryptHash: bcryptHash
   };
-  savePasswords(passwords);
+  saveTopics(topics);
   
   // Create empty todo file
   const todoFile = getTodoFilePath(dataHash);
@@ -539,25 +539,25 @@ async function verifyAndRegisterPassword(password) {
 
 /**
  * Register an OAuth user.
- * @param {string} passwordHash - The data hash of the user.
+ * @param {string} topicHash - The data hash of the user.
  * @param {string} provider - The OAuth provider.
  * @param {object} userInfo - The user's info from the provider.
  */
-function registerOAuthUser(passwordHash, provider, userInfo) {
-  const passwords = loadPasswords();
+function registerOAuthUser(topicHash, provider, userInfo) {
+  const topics = loadTopics();
   
   // Store OAuth user with their data hash (not bcrypt for OAuth IDs)
-  passwords[passwordHash] = {
+  topics[topicHash] = {
     createdAt: Date.now(),
     oauthProvider: provider,
     email: userInfo.email,
     name: userInfo.name,
     picture: userInfo.picture
   };
-  savePasswords(passwords);
+  saveTopics(topics);
   
   // Create empty todo file for this OAuth user
-  const todoFile = getTodoFilePath(passwordHash);
+  const todoFile = getTodoFilePath(topicHash);
   if (!fs.existsSync(todoFile)) {
     fs.writeFileSync(todoFile, JSON.stringify([], null, 2), 'utf8');
   }
@@ -567,34 +567,34 @@ function registerOAuthUser(passwordHash, provider, userInfo) {
 
 /**
  * Get the file path for a user's todos.
- * @param {string} passwordHash - The user's data hash.
+ * @param {string} topicHash - The user's data hash.
  * @returns {string} The file path.
  */
-function getTodoFilePath(passwordHash) {
-  return path.join(DATA_DIR, `todos_${passwordHash}.json`);
+function getTodoFilePath(topicHash) {
+  return path.join(DATA_DIR, `todos_${topicHash}.json`);
 }
 
-// --- Helper functions for file handling (per-password) ---
+// --- Helper functions for file handling (per-topic) ---
 
-// Debounce cache for pending writes (per password hash)
+// Debounce cache for pending writes (per topic hash)
 // Configurable debounce time (default 100ms for faster response, can be increased via env)
 const DB_WRITE_DEBOUNCE_MS = parseInt(process.env.DB_WRITE_DEBOUNCE_MS) || 100;
 const writeCache = new Map();
-const pendingWrites = new Map(); // passwordHash -> setTimeout ID
+const pendingWrites = new Map(); // topicHash -> setTimeout ID
 
 /**
  * Load todos for a user.
- * @param {string} passwordHash - The user's data hash.
+ * @param {string} topicHash - The user's data hash.
  * @returns {{todos: Array, sortMode: string}} The user's todos and sort mode.
  */
-function loadTodos(passwordHash) {
+function loadTodos(topicHash) {
   // First check cache for latest data
-  const cached = writeCache.get(passwordHash);
+  const cached = writeCache.get(topicHash);
   if (cached) {
     return cached;
   }
   
-  const todoFile = getTodoFilePath(passwordHash);
+  const todoFile = getTodoFilePath(topicHash);
   try {
     if (fs.existsSync(todoFile)) {
       const raw = fs.readFileSync(todoFile, 'utf8');
@@ -617,25 +617,25 @@ function loadTodos(passwordHash) {
 
 /**
  * Asynchronously save todos for a user with debouncing.
- * @param {string} passwordHash - The user's data hash.
+ * @param {string} topicHash - The user's data hash.
  * @param {Array} todos - The user's todos.
  * @param {string} [sortMode='default'] - The user's sort mode.
  * @param {boolean} [deleteEnabled=true] - Whether delete is enabled.
  */
-function saveTodosAsync(passwordHash, todos, sortMode = 'default', deleteEnabled = true) {
+function saveTodosAsync(topicHash, todos, sortMode = 'default', deleteEnabled = true) {
   // Update cache immediately for reads
   const data = { todos, sortMode, deleteEnabled };
-  writeCache.set(passwordHash, data);
+  writeCache.set(topicHash, data);
   
   // Clear existing pending write
-  if (pendingWrites.has(passwordHash)) {
-    clearTimeout(pendingWrites.get(passwordHash));
+  if (pendingWrites.has(topicHash)) {
+    clearTimeout(pendingWrites.get(topicHash));
   }
   
   // Schedule async write with debounce
   const timeoutId = setTimeout(() => {
-    const todoFile = getTodoFilePath(passwordHash);
-    const cached = writeCache.get(passwordHash);
+    const todoFile = getTodoFilePath(topicHash);
+    const cached = writeCache.get(topicHash);
     const dataToWrite = JSON.stringify({ 
       todos: cached?.todos || todos, 
       sortMode: cached?.sortMode || sortMode,
@@ -646,29 +646,29 @@ function saveTodosAsync(passwordHash, todos, sortMode = 'default', deleteEnabled
       if (err) {
         console.error('Error writing todos file:', err);
       } else {
-        console.log(`[DB] Async write completed for ${passwordHash.substring(0, 8)}...`);
+        console.log(`[DB] Async write completed for ${topicHash.substring(0, 8)}...`);
       }
     });
     
-    pendingWrites.delete(passwordHash);
+    pendingWrites.delete(topicHash);
   }, DB_WRITE_DEBOUNCE_MS);
   
-  pendingWrites.set(passwordHash, timeoutId);
+  pendingWrites.set(topicHash, timeoutId);
 }
 
 /**
  * Synchronously save todos for a user.
  * @param {Array} todos - The user's todos.
- * @param {string} passwordHash - The user's data hash.
+ * @param {string} topicHash - The user's data hash.
  * @param {string} [sortMode='default'] - The user's sort mode.
  * @param {boolean} [deleteEnabled=true] - Whether delete is enabled.
  */
-function saveTodosSync(todos, passwordHash, sortMode = 'default', deleteEnabled = true) {
-  const todoFile = getTodoFilePath(passwordHash);
+function saveTodosSync(todos, topicHash, sortMode = 'default', deleteEnabled = true) {
+  const todoFile = getTodoFilePath(topicHash);
   try {
     fs.writeFileSync(todoFile, JSON.stringify({ todos, sortMode, deleteEnabled }, null, 2), 'utf8');
     // Clear from cache after sync write
-    writeCache.delete(passwordHash);
+    writeCache.delete(topicHash);
   } catch (err) {
     console.error('Error writing todos file:', err);
   }
@@ -677,12 +677,12 @@ function saveTodosSync(todos, passwordHash, sortMode = 'default', deleteEnabled 
 /**
  * Save todos for a user (backward compatibility).
  * @param {Array} todos - The user's todos.
- * @param {string} passwordHash - The user's data hash.
+ * @param {string} topicHash - The user's data hash.
  * @param {string} [sortMode='default'] - The user's sort mode.
  * @param {boolean} [deleteEnabled=true] - Whether delete is enabled.
  */
-function saveTodos(todos, passwordHash, sortMode = 'default', deleteEnabled = true) {
-  return saveTodosAsync(passwordHash, todos, sortMode, deleteEnabled);
+function saveTodos(todos, topicHash, sortMode = 'default', deleteEnabled = true) {
+  return saveTodosAsync(topicHash, todos, sortMode, deleteEnabled);
 }
 
 // --- Helper to get todos for a session ---
@@ -693,10 +693,10 @@ function saveTodos(todos, passwordHash, sortMode = 'default', deleteEnabled = tr
  * @returns {{todos: Array, sortMode: string}} The user's todos and sort mode.
  */
 function getSessionTodos(session) {
-  if (!session || !session.passwordHash) {
+  if (!session || !session.topicHash) {
     return { todos: [], sortMode: 'default', deleteEnabled: true };
   }
-  return loadTodos(session.passwordHash);
+  return loadTodos(session.topicHash);
 }
 
 /**
@@ -707,10 +707,11 @@ function getSessionTodos(session) {
  * @param {boolean} deleteEnabled - Whether delete is enabled.
  */
 function saveSessionTodos(todos, session, sortMode, deleteEnabled) {
-  if (!session || !session.passwordHash) {
+  const topicHash = session.topicHash;
+  if (!topicHash) {
     return;
   }
-  saveTodos(todos, session.passwordHash, sortMode, deleteEnabled);
+  saveTodos(todos, topicHash, sortMode, deleteEnabled);
 }
 
 // --- Broadcast function for WebSocket ---
@@ -718,9 +719,9 @@ function saveSessionTodos(todos, session, sortMode, deleteEnabled) {
 /**
  * Broadcast data to all WebSocket clients.
  * @param {object} data - The data to broadcast.
- * @param {string|null} [passwordHash=null] - The password hash to broadcast to (not used).
+ * @param {string|null} [topicHash=null] - The topic hash to broadcast to (not used).
  */
-function broadcast(data, passwordHash = null) {
+function broadcast(data, topicHash = null) {
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify(data));
@@ -729,12 +730,12 @@ function broadcast(data, passwordHash = null) {
 }
 
 // --- Load initial data (for backward compatibility) ---
-// If no passwords file exists, create one with the default password
-const passwords = loadPasswords();
-if (Object.keys(passwords).length === 0 && fs.existsSync(path.join(DATA_DIR, 'todos.json'))) {
-  // Migrate existing todos.json to password-based system
+// If no topics file exists, create one with the default topic
+const topics = loadTopics();
+if (Object.keys(topics).length === 0 && fs.existsSync(path.join(DATA_DIR, 'todos.json'))) {
+  // Migrate existing todos.json to topic-based system
   const defaultHash = getDataHash('ROZSA');
-  registerPassword('ROZSA');
+  registerTopic('ROZSA');
   const existingTodos = loadTodos('');
   if (existingTodos.length > 0) {
     saveTodos(existingTodos, defaultHash);
@@ -745,7 +746,7 @@ app.use(cors());
 app.use(cookieParser());
 app.use(express.json());
 
-const SENSITIVE_LOG_KEYS = new Set(['pa$$word', 'token', 'authtoken', 'oauth_token']);
+const SENSITIVE_LOG_KEYS = new Set(['pa$$word', 'topic', 'topic', 'token', 'authtoken', 'oauth_token']);
 
 function sanitizeLogValue(value, maxLength = 2000) {
   if (value === undefined || value === null) {
@@ -860,7 +861,7 @@ function requireAuth(req, res, next) {
  * @swagger
  * /api/auth/login:
  *   post:
- *     summary: Login with a password
+ *     summary: Login with a topic
  *     requestBody:
  *       required: true
  *       content:
@@ -868,7 +869,7 @@ function requireAuth(req, res, next) {
  *           schema:
  *             type: object
  *             properties:
- *               password:
+ *               topic:
  *                 type: string
  *     responses:
  *       200:
@@ -877,21 +878,21 @@ function requireAuth(req, res, next) {
  *         description: Authentication failed
  */
 app.post('/api/auth/login', async (req, res) => {
-  const { password } = req.body;
+  const topic = req.body.topic || req.body.topic;
   
-  if (!password) {
-    return res.status(400).json({ error: 'Password is required' });
+  if (!topic) {
+    return res.status(400).json({ error: 'Topic is required' });
   }
   
   try {
-    // Verify password and register if new (async with bcrypt)
-    const { hash: passwordHash, isNew } = await verifyAndRegisterPassword(password);
+    // Verify topic and register if new (async with bcrypt)
+    const { hash: topicHash, isNew } = await verifyAndRegisterTopic(topic);
     
     // Create session
     const token = crypto.randomBytes(32).toString('hex');
     sessions.set(token, { 
       createdAt: Date.now(),
-      passwordHash: passwordHash
+      topicHash: topicHash
     });
     saveSessions();
     
@@ -905,8 +906,8 @@ app.post('/api/auth/login', async (req, res) => {
     
     res.json({ 
       token, // Kept for backward compatibility, but cookie is preferred
-      isNewPassword: isNew,
-      message: isNew ? 'New password registered with personal todo database' : 'Login successful'
+      isNewTopic: isNew,
+      message: isNew ? 'New topic registered with personal todo database' : 'Login successful'
     });
   } catch (err) {
     res.status(401).json({ error: err.message || 'Authentication failed' });
@@ -947,7 +948,7 @@ app.get('/api/auth/check', (req, res) => {
   const token = req.cookies?.authToken || req.headers.authorization?.split(' ')[1];
   if (token && sessions.has(token)) {
     const session = sessions.get(token);
-    res.json({ authenticated: true, isNewPassword: false });
+    res.json({ authenticated: true, isNewTopic: false });
   } else {
     res.json({ authenticated: false });
   }
@@ -1047,22 +1048,22 @@ app.get('/api/auth/oauth/callback', async (req, res) => {
     
     // Create or get OAuth user
     const oauthId = getOAuthUserId(provider, userInfo.id || userInfo.email);
-    const passwordHash = getDataHash(oauthId);
+    const topicHash = getDataHash(oauthId);
     
     // Check if new user
-    const passwords = loadPasswords();
-    const isNew = !passwords[passwordHash];
+    const topics = loadTopics();
+    const isNew = !topics[topicHash];
     
     // Register OAuth user
     if (isNew) {
-      registerOAuthUser(passwordHash, provider, userInfo);
+      registerOAuthUser(topicHash, provider, userInfo);
     }
     
     // Create session
     const token = crypto.randomBytes(32).toString('hex');
     sessions.set(token, {
       createdAt: Date.now(),
-      passwordHash: passwordHash,
+      topicHash: topicHash,
       oauthProvider: provider,
       email: userInfo.email
     });
@@ -1120,7 +1121,7 @@ app.post('/api/todos', requireAuth, (req, res) => {
   };
   todos.push(todo);
   saveSessionTodos(todos, req.session, sortMode, deleteEnabled);
-  broadcast(todos, req.session.passwordHash);
+  broadcast(todos, req.session.topicHash);
 
   res.status(201).json(todo);
 });
@@ -1133,7 +1134,7 @@ app.put('/api/todos', requireAuth, (req, res) => {
 
   const data = getSessionTodos(req.session);
   saveSessionTodos(newTodos, req.session, data.sortMode, data.deleteEnabled);
-  broadcast(newTodos, req.session.passwordHash);
+  broadcast(newTodos, req.session.topicHash);
 
   res.status(200).json({ message: 'Todos restored successfully' });
 });
@@ -1160,7 +1161,7 @@ app.put('/api/todos/:id', requireAuth, (req, res) => {
   if (typeof favorite === 'boolean') todo.favorite = favorite;
 
   saveSessionTodos(todos, req.session, sortMode, deleteEnabled);
-  broadcast(todos, req.session.passwordHash);
+  broadcast(todos, req.session.topicHash);
   res.json(todo);
 });
 
@@ -1179,7 +1180,7 @@ app.delete('/api/todos/clear-completed', requireAuth, (req, res) => {
   }
   
   saveSessionTodos(remainingTodos, req.session, sortMode, deleteEnabled);
-  broadcast(remainingTodos, req.session.passwordHash);
+  broadcast(remainingTodos, req.session.topicHash);
 
   res.json({ message: 'Cleared completed todos', deleted: completedTodos.length });
 });
@@ -1201,7 +1202,7 @@ app.delete('/api/todos/:id', requireAuth, (req, res) => {
 
   const removed = todos.splice(index, 1)[0];
   saveSessionTodos(todos, req.session, sortMode, deleteEnabled);
-  broadcast(todos, req.session.passwordHash);
+  broadcast(todos, req.session.topicHash);
 
   res.json(removed);
 });
@@ -1250,12 +1251,12 @@ app.get('/api/settings', requireAuth, (req, res) => {
 
 // --- Archive endpoint ---
 app.post('/api/archive', requireAuth, (req, res) => {
-  if (!req.session || !req.session.passwordHash) {
+  if (!req.session || !req.session.topicHash) {
     return res.status(400).json({ error: 'No session found' });
   }
   
-  const passwordHash = req.session.passwordHash;
-  const sourceFile = getTodoFilePath(passwordHash);
+  const topicHash = req.session.topicHash;
+  const sourceFile = getTodoFilePath(topicHash);
   
   // Create archive directory if it doesn't exist
   const archiveDir = path.join(DATA_DIR, 'archive');
@@ -1270,7 +1271,7 @@ app.post('/api/archive', requireAuth, (req, res) => {
   
   // Create archive filename with timestamp
   const timestamp = Date.now();
-  const archiveFileName = `todos_${passwordHash}_${timestamp}.json`;
+  const archiveFileName = `todos_${topicHash}_${timestamp}.json`;
   const destFile = path.join(archiveDir, archiveFileName);
   
   try {
@@ -1291,7 +1292,7 @@ app.post('/api/archive', requireAuth, (req, res) => {
 });
 
 /**
- * Associates a WebSocket connection with a password hash using a session token.
+ * Associates a WebSocket connection with a topic hash using a session token.
  * @param {WebSocket} ws - The WebSocket client.
  * @param {string} token - The session token.
  */
@@ -1301,13 +1302,13 @@ function authenticateWebSocket(ws, token) {
     const sessionAge = Date.now() - session.createdAt;
 
     if (sessionAge <= SESSION_MAX_AGE) {
-      ws.passwordHash = session.passwordHash;
-      console.log(`[WS] Authenticated connection for hash ${ws.passwordHash.substring(0, 8)}...`);
+      ws.topicHash = session.topicHash;
+      console.log(`[WS] Authenticated connection for hash ${ws.topicHash.substring(0, 8)}...`);
     } else {
-      delete ws.passwordHash; // Session expired
+      delete ws.topicHash; // Session expired
     }
   } else {
-    delete ws.passwordHash; // Invalid token
+    delete ws.topicHash; // Invalid token
   }
 }
 
@@ -1338,18 +1339,18 @@ wss.on('connection', (ws, req) => {
 });
 
 /**
- * Broadcast data to clients associated with a specific passwordHash.
+ * Broadcast data to clients associated with a specific topicHash.
  * @param {object} data - The data to broadcast.
- * @param {string} passwordHash - The password hash to broadcast to.
+ * @param {string} topicHash - The topic hash to broadcast to.
  */
-function broadcast(data, passwordHash) {
-  if (!passwordHash) {
-    console.warn('[WS] Broadcast called without a passwordHash. Not broadcasting.');
+function broadcast(data, topicHash) {
+  if (!topicHash) {
+    console.warn('[WS] Broadcast called without a topicHash. Not broadcasting.');
     return;
   }
   const payload = JSON.stringify(data);
   wss.clients.forEach(client => {
-    if (client.passwordHash === passwordHash && client.readyState === WebSocket.OPEN) {
+    if (client.topicHash === topicHash && client.readyState === WebSocket.OPEN) {
       client.send(payload);
     }
   });
@@ -1362,6 +1363,6 @@ cleanupData();
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on ${PROTOCOL}://0.0.0.0:${PORT}`);
-  console.log(`Passwords stored in: ${PASSWORDS_FILE}`);
+  console.log(`Topics stored in: ${TOPICS_FILE}`);
   console.log(`Todo databases stored in: ${DATA_DIR}/todos_<hash>.json`);
 });
