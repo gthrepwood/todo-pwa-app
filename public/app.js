@@ -4,11 +4,25 @@ const AUTH_API = '/api/auth';
 // Check for token in localStorage first (backward compatibility)
 let authToken = localStorage.getItem('authToken');
 
+// Generate and save deviceId early
+let deviceId = localStorage.getItem('deviceId');
+if (!deviceId) {
+  deviceId = crypto.randomUUID ? crypto.randomUUID() : 'device-' + Math.random().toString(36).substring(2, 15) + '-' + Date.now();
+  localStorage.setItem('deviceId', deviceId);
+}
+
+// Save topic if not already set (defaults to deviceId)
+if (!localStorage.getItem('topic')) {
+  localStorage.setItem('topic', deviceId);
+}
+
 const form = document.getElementById('todo-form');
 const input = document.getElementById('todo-input');
 const list = document.getElementById('todo-list');
 const showDoneToggle = document.getElementById('show-done-toggle');
 const undoBtn = document.getElementById('undo-btn');
+const loginTopic = document.getElementById('login-topic');
+const loginError = document.getElementById('login-error');
 
 let allTodos = [];
 let currentSortMode = 'default'; // 'default' = by added time, 'alpha' = alphabetically
@@ -24,6 +38,11 @@ if (savedShowCompleted !== null) {
 // Load font size from localStorage
 let currentFontSize = localStorage.getItem('fontSize') || 'normal';
 document.body.classList.add(`font-${currentFontSize}`);
+
+function showMessage(msg) {
+  loginError.textContent = msg;
+  loginError.classList.remove('hidden');
+}
 
 /**
  * Sets the font size and persists it to localStorage.
@@ -78,6 +97,8 @@ function showLoginScreen() {
   document.getElementById('todo-list').classList.add('hidden');
   document.getElementById('undo-btn').classList.add('hidden');
   document.getElementById('login-screen').classList.remove('hidden');
+  
+  loginTopic.value = localStorage.getItem('topic');
   
   // Load OAuth providers for this server
   loadOAuthProviders();
@@ -689,12 +710,15 @@ document.addEventListener('keydown', (e) => {
 
 // Login form handling
 const loginForm = document.getElementById('login-form');
-const loginError = document.getElementById('login-error');
-const loginTopic = document.getElementById('login-topic');
+
+loginTopic.addEventListener('input', () => {
+  localStorage.setItem('topic', loginTopic.value);
+});
 
 loginForm.addEventListener('submit', async e => {
   e.preventDefault();
   const topic = loginTopic.value;
+  localStorage.setItem('topic', topic);
   const result = await login(topic);
   if (!result.success) {
     loginError.textContent = result.error || 'Login error';

@@ -17,8 +17,5 @@ Thumbs.db
 package-lock.json
 yarn.lock
 
-backend/data/topics.json
-backend/data/sessions.json
-backend/data/todos_*.json
-backend/data/archive/
+backend/data/*
 notes.md

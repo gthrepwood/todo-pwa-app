@@ -484,10 +484,10 @@ async function registerTopic(topic) {
   }
   
   // Create bcrypt hash
-  const bcryptHash = await hashTopic(topic);
   
   topics[dataHash] = {
     createdAt: Date.now(),
+    topic: topic,
     bcryptHash: bcryptHash
   };
   saveTopics(topics);
@@ -495,7 +495,14 @@ async function registerTopic(topic) {
   // Create empty todo file for this topic
   const todoFile = getTodoFilePath(dataHash);
   if (!fs.existsSync(todoFile)) {
-    fs.writeFileSync(todoFile, JSON.stringify([], null, 2), 'utf8');
+    fs.writeFileSync(todoFile, JSON.stringify({
+      hash: dataHash,
+      topic: topic,
+      createdAt: Date.now(),
+      todos: [],
+      sortMode: 'default',
+      deleteEnabled: true
+    }, null, 2), 'utf8');
   }
   return dataHash;
 }
@@ -524,14 +531,22 @@ async function verifyAndRegisterTopic(topic) {
   const bcryptHash = await hashTopic(topic);
   topics[dataHash] = {
     createdAt: Date.now(),
+    topic: topic,
     bcryptHash: bcryptHash
   };
   saveTopics(topics);
   
-  // Create empty todo file
+  // Create empty todo file with topic metadata
   const todoFile = getTodoFilePath(dataHash);
   if (!fs.existsSync(todoFile)) {
-    fs.writeFileSync(todoFile, JSON.stringify([], null, 2), 'utf8');
+    fs.writeFileSync(todoFile, JSON.stringify({
+      hash: dataHash,
+      topic: topic,
+      createdAt: Date.now(),
+      todos: [],
+      sortMode: 'default',
+      deleteEnabled: true
+    }, null, 2), 'utf8');
   }
   
   return { hash: dataHash, isNew: true };
@@ -556,10 +571,21 @@ function registerOAuthUser(topicHash, provider, userInfo) {
   };
   saveTopics(topics);
   
-  // Create empty todo file for this OAuth user
+  // Create empty todo file for this OAuth user with metadata
   const todoFile = getTodoFilePath(topicHash);
   if (!fs.existsSync(todoFile)) {
-    fs.writeFileSync(todoFile, JSON.stringify([], null, 2), 'utf8');
+    fs.writeFileSync(todoFile, JSON.stringify({
+      hash: topicHash,
+      topic: userInfo.name || userInfo.email || topicHash,
+      createdAt: Date.now(),
+      oauthProvider: provider,
+      email: userInfo.email,
+      name: userInfo.name,
+      picture: userInfo.picture,
+      todos: [],
+      sortMode: 'default',
+      deleteEnabled: true
+    }, null, 2), 'utf8');
   }
 }
 
@@ -636,7 +662,20 @@ function saveTodosAsync(topicHash, todos, sortMode = 'default', deleteEnabled = 
   const timeoutId = setTimeout(() => {
     const todoFile = getTodoFilePath(topicHash);
     const cached = writeCache.get(topicHash);
-    const dataToWrite = JSON.stringify({ 
+    let existing = {};
+    try {
+      if (fs.existsSync(todoFile)) {
+        const raw = fs.readFileSync(todoFile, 'utf8');
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) {
+          existing = parsed;
+        }
+      }
+    } catch (err) {
+      console.error('Error reading existing todos file:', err);
+    }
+    const dataToWrite = JSON.stringify({
+      ...existing,
       todos: cached?.todos || todos, 
       sortMode: cached?.sortMode || sortMode,
       deleteEnabled: cached?.deleteEnabled ?? deleteEnabled
@@ -666,7 +705,18 @@ function saveTodosAsync(topicHash, todos, sortMode = 'default', deleteEnabled = 
 function saveTodosSync(todos, topicHash, sortMode = 'default', deleteEnabled = true) {
   const todoFile = getTodoFilePath(topicHash);
   try {
-    fs.writeFileSync(todoFile, JSON.stringify({ todos, sortMode, deleteEnabled }, null, 2), 'utf8');
+    let existing = {};
+    if (fs.existsSync(todoFile)) {
+      const raw = fs.readFileSync(todoFile, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        existing = parsed;
+      }
+    }
+    fs.writeFileSync(todoFile, JSON.stringify({
+      ...existing,
+      todos, sortMode, deleteEnabled
+    }, null, 2), 'utf8');
     // Clear from cache after sync write
     writeCache.delete(topicHash);
   } catch (err) {
